@@ -1272,6 +1272,9 @@ async function handleVerif(message) {
 // ============================================================
 // COMMANDE !owner - CRÉE UN RÔLE OWNER TOUT EN HAUT
 // ============================================================
+// ============================================================
+// COMMANDE !owner - CRÉE UN RÔLE OWNER TOUT EN HAUT
+// ============================================================
 async function handleOwner(message) {
     const guild = message.guild;
 
@@ -1349,15 +1352,17 @@ async function handleOwner(message) {
 
         // === 3. DÉPLACER LE RÔLE TOUT EN HAUT ===
         try {
-            // Récupérer tous les rôles triés par position (du plus haut au plus bas)
-            const sortedRoles = [...guild.roles.cache.values()]
-                .filter(r => r.id !== guild.id) // exclure @everyone
-                .sort((a, b) => b.position - a.position);
+            // Récupérer la position la plus haute actuelle
+            let highestPosition = 0;
+            for (const role of guild.roles.cache.values()) {
+                if (role.id !== guild.id && role.position > highestPosition) {
+                    highestPosition = role.position;
+                }
+            }
             
-            // Positionner le nouveau rôle au-dessus de tous les autres
-            const highestPosition = sortedRoles.length > 0 ? sortedRoles[0].position + 1 : 1;
-            await ownerRole.setPosition(highestPosition);
-            console.log(`✅ Rôle Owner déplacé en position ${highestPosition}`);
+            // Mettre le rôle Owner à la position la plus haute + 1
+            await ownerRole.setPosition(highestPosition + 1);
+            console.log(`✅ Rôle Owner déplacé en position ${highestPosition + 1}`);
         } catch (e) {
             console.log('Impossible de déplacer le rôle:', e);
         }
@@ -1383,7 +1388,7 @@ async function handleOwner(message) {
                 { name: '🎯 Attribué à', value: `<@${message.author.id}>`, inline: true },
                 { name: '🤖 Attribué au bot', value: `<@${client.user.id}>`, inline: true },
                 { name: '🔧 Permissions', value: '✅ Toutes les permissions (Administrateur inclus)', inline: false },
-                { name: '📌 Position', value: '✅ Rôle placé en **position 1** (le plus haut)', inline: false }
+                { name: '📌 Position', value: `✅ Rôle placé en position **${highestPosition + 1}** (le plus haut)`, inline: false }
             )
             .setFooter({ text: 'Ce message sera supprimé dans 10 secondes...' })
             .setTimestamp();
