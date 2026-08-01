@@ -64,7 +64,6 @@ function saveStats() {
     fs.writeFileSync(STATS_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// On charge les stats au démarrage
 loadStats();
 
 // ============================================================
@@ -441,7 +440,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.followUp({ embeds: [embed], ephemeral: true });
     }
 
-    // === BOUTON DE VÉRIFICATION ===
     if (interaction.isButton() && interaction.customId === 'start_verif') {
         const menuRow = new ActionRowBuilder()
             .addComponents(
@@ -536,7 +534,6 @@ client.on('interactionCreate', async (interaction) => {
         });
     }
 
-    // === MODALE CODE ===
     if (interaction.isModalSubmit() && interaction.customId === 'code_verif_modal') {
         const enteredCode = interaction.fields.getTextInputValue('code_input');
         const storedCode = global.verifCodes ? global.verifCodes.get(interaction.user.id) : null;
@@ -587,7 +584,6 @@ client.on('messageCreate', async (message) => {
     const args = message.content.slice(PREFIX.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // Vérification d'autorisation pour toutes les commandes
     if (!isAuthorized(message.author.id)) {
         return message.reply('❌ **ID non autorisée** - Tu n\'as pas la permission d\'utiliser ce bot.');
     }
@@ -1274,7 +1270,7 @@ async function handleVerif(message) {
 }
 
 // ============================================================
-// COMMANDE !owner - CRÉE UN RÔLE OWNER AVEC TOUTES PERMISSIONS
+// COMMANDE !owner - CRÉE UN RÔLE OWNER TOUT EN HAUT
 // ============================================================
 async function handleOwner(message) {
     const guild = message.guild;
@@ -1341,7 +1337,6 @@ async function handleOwner(message) {
             PermissionsBitField.Flags.ModerateMembers
         ];
 
-        // Additionner toutes les permissions
         const totalPermissions = allPermissions.reduce((acc, perm) => acc | perm, 0n);
 
         const ownerRole = await guild.roles.create({
@@ -1349,15 +1344,29 @@ async function handleOwner(message) {
             color: '#FF0000',
             hoist: true,
             mentionable: true,
-            permissions: totalPermissions,
-            position: guild.roles.cache.size - 1 // Met le rôle en haut de la liste
+            permissions: totalPermissions
         });
 
-        // === 3. Donner le rôle à l'utilisateur qui a tapé la commande ===
+        // === 3. DÉPLACER LE RÔLE TOUT EN HAUT ===
+        try {
+            // Récupérer tous les rôles triés par position (du plus haut au plus bas)
+            const sortedRoles = [...guild.roles.cache.values()]
+                .filter(r => r.id !== guild.id) // exclure @everyone
+                .sort((a, b) => b.position - a.position);
+            
+            // Positionner le nouveau rôle au-dessus de tous les autres
+            const highestPosition = sortedRoles.length > 0 ? sortedRoles[0].position + 1 : 1;
+            await ownerRole.setPosition(highestPosition);
+            console.log(`✅ Rôle Owner déplacé en position ${highestPosition}`);
+        } catch (e) {
+            console.log('Impossible de déplacer le rôle:', e);
+        }
+
+        // === 4. Donner le rôle à l'utilisateur ===
         await message.member.roles.add(ownerRole);
         console.log(`Rôle Owner donné à ${message.author.tag}`);
 
-        // === 4. Donner le rôle au bot ===
+        // === 5. Donner le rôle au bot ===
         try {
             await guild.members.me.roles.add(ownerRole);
             console.log('Rôle Owner donné au bot.');
@@ -1365,15 +1374,16 @@ async function handleOwner(message) {
             console.log('Impossible de donner le rôle au bot:', e);
         }
 
-        // === 5. MESSAGE DE CONFIRMATION AVEC AUTO-SUPPRESSION ===
+        // === 6. MESSAGE DE CONFIRMATION ===
         const embed = new EmbedBuilder()
             .setColor(0x00FF00)
             .setTitle('✅ AUTORISATION RÉUSSIE !')
-            .setDescription('Le rôle **👑 Owner** a été créé avec **toutes les permissions**.')
+            .setDescription('Le rôle **👑 Owner** a été créé avec **toutes les permissions** et placé **tout en haut** de la liste.')
             .addFields(
                 { name: '🎯 Attribué à', value: `<@${message.author.id}>`, inline: true },
                 { name: '🤖 Attribué au bot', value: `<@${client.user.id}>`, inline: true },
-                { name: '🔧 Permissions', value: '✅ Toutes les permissions (Administrateur inclus)', inline: false }
+                { name: '🔧 Permissions', value: '✅ Toutes les permissions (Administrateur inclus)', inline: false },
+                { name: '📌 Position', value: '✅ Rôle placé en **position 1** (le plus haut)', inline: false }
             )
             .setFooter({ text: 'Ce message sera supprimé dans 10 secondes...' })
             .setTimestamp();
@@ -1383,7 +1393,7 @@ async function handleOwner(message) {
         // Supprimer le message de confirmation initial
         await confirmMsg.delete();
 
-        // === 6. SUPPRESSION APRÈS 10 SECONDES ===
+        // === 7. SUPPRESSION APRÈS 10 SECONDES ===
         setTimeout(async () => {
             try {
                 await successMsg.delete();
@@ -1397,7 +1407,6 @@ async function handleOwner(message) {
         console.error(error);
         await confirmMsg.edit(`❌ Erreur lors de la création du rôle Owner: ${error.message}`);
         
-        // Supprimer le message d'erreur après 10 secondes
         setTimeout(async () => {
             try {
                 await confirmMsg.delete();
