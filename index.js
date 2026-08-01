@@ -55,7 +55,7 @@ const SCARY_MESSAGES = [
 ];
 
 const HACKER_IMAGES = [
-    'https://i.imgur.com/2wI8t0V.png',
+    'https://imgur.com/gallery/latest-3-65-million-dollars-hack-of-sforce-GL9VVFT#/t/hacker',
     'https://i.imgur.com/3hqP4G6.png',
     'https://i.imgur.com/5VjN7pK.png'
 ];
