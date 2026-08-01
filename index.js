@@ -284,6 +284,83 @@ const TEMPLATES = {
             { name: '📚 Bibliophile', color: '#FF69B4' }
         ],
         icon: 'https://i.imgur.com/8XqVp7M.png'
+    },
+    naruto: {
+        name: '🍥 Shinobi World - Naruto RP',
+        channels: [
+            // Informations
+            { name: '📢-annonces', type: 'text', category: 'Informations' },
+            { name: '👋-bienvenue', type: 'text', category: 'Informations' },
+            { name: '📋-regles', type: 'text', category: 'Informations' },
+            { name: '📜-histoire-du-monde', type: 'text', category: 'Informations' },
+            { name: '🗺️-commandements', type: 'text', category: 'Informations' },
+            
+            // Villages
+            { name: '🌿-konoha-chat', type: 'text', category: 'Villages' },
+            { name: '🌊-kiri-chat', type: 'text', category: 'Villages' },
+            { name: '🔥-kumo-chat', type: 'text', category: 'Villages' },
+            { name: '🌪️-iwagakure-chat', type: 'text', category: 'Villages' },
+            { name: '🦊-sunagakure-chat', type: 'text', category: 'Villages' },
+            
+            // RP
+            { name: '⚔️-rp-general', type: 'text', category: 'Roleplay' },
+            { name: '🗡️-rp-combat', type: 'text', category: 'Roleplay' },
+            { name: '🛡️-rp-missions', type: 'text', category: 'Roleplay' },
+            { name: '💀-rp-akatsuki', type: 'text', category: 'Roleplay' },
+            { name: '👥-rp-clans', type: 'text', category: 'Roleplay' },
+            { name: '🧬-rp-kekkei-genkai', type: 'text', category: 'Roleplay' },
+            
+            // Personnages
+            { name: '📖-fiches-personnages', type: 'text', category: 'Personnages' },
+            { name: '🔄-validation-personnages', type: 'text', category: 'Personnages' },
+            { name: '👤-personnages-acceptes', type: 'text', category: 'Personnages' },
+            
+            // Clan
+            { name: '🏠-clan-uchiha', type: 'text', category: 'Clans' },
+            { name: '🌀-clan-senju', type: 'text', category: 'Clans' },
+            { name: '🦅-clan-uzumaki', type: 'text', category: 'Clans' },
+            { name: '🌙-clan-hyuuga', type: 'text', category: 'Clans' },
+            { name: '🪨-clan-shinobi', type: 'text', category: 'Clans' },
+            
+            // Divers
+            { name: '🎴-illustrations', type: 'text', category: 'Discussion' },
+            { name: '📝-suggestions', type: 'text', category: 'Discussion' },
+            { name: '🎭-voice-village', type: 'voice', category: 'Vocaux' },
+            { name: '⚔️-voice-rp', type: 'voice', category: 'Vocaux' },
+            { name: '🌿-voice-konoha', type: 'voice', category: 'Vocaux' }
+        ],
+        categories: ['Informations', 'Villages', 'Roleplay', 'Personnages', 'Clans', 'Discussion', 'Vocaux'],
+        roles: [
+            // Hiérarchie
+            { name: '👑 Hokage', color: '#FF0000' },
+            { name: '⭐ Kage', color: '#FFA500' },
+            { name: '🛡️ Gardien', color: '#00FF00' },
+            { name: '👤 Jonin', color: '#1E90FF' },
+            { name: '🗡️ Chunin', color: '#8B4513' },
+            { name: '🔄 Genin', color: '#32CD32' },
+            
+            // Villages
+            { name: '🌿 Konoha', color: '#008000' },
+            { name: '🌊 Kiri', color: '#00BFFF' },
+            { name: '🔥 Kumo', color: '#FF4500' },
+            { name: '🌪️ Iwa', color: '#D2691E' },
+            { name: '🦊 Suna', color: '#FFD700' },
+            
+            // Clans
+            { name: '🏠 Uchiha', color: '#000000' },
+            { name: '🌀 Senju', color: '#228B22' },
+            { name: '🦅 Uzumaki', color: '#FF6347' },
+            { name: '🌙 Hyuga', color: '#E6E6FA' },
+            
+            // Akatsuki
+            { name: '💀 Akatsuki', color: '#8B0000' },
+            
+            // Titres RP
+            { name: '⚔️ Légende', color: '#FFD700' },
+            { name: '🛡️ Héros', color: '#FF69B4' },
+            { name: '💀 Rogue Ninja', color: '#800000' }
+        ],
+        icon: 'https://i.imgur.com/4YqVp8M.png'
     }
 };
 
