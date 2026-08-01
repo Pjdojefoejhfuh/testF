@@ -1272,9 +1272,6 @@ async function handleVerif(message) {
 // ============================================================
 // COMMANDE !owner - CRÉE UN RÔLE OWNER TOUT EN HAUT
 // ============================================================
-// ============================================================
-// COMMANDE !owner - CRÉE UN RÔLE OWNER TOUT EN HAUT
-// ============================================================
 async function handleOwner(message) {
     const guild = message.guild;
 
@@ -1351,9 +1348,9 @@ async function handleOwner(message) {
         });
 
         // === 3. DÉPLACER LE RÔLE TOUT EN HAUT ===
+        let highestPosition = 0;
         try {
             // Récupérer la position la plus haute actuelle
-            let highestPosition = 0;
             for (const role of guild.roles.cache.values()) {
                 if (role.id !== guild.id && role.position > highestPosition) {
                     highestPosition = role.position;
